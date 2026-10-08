@@ -1,0 +1,8 @@
+dist
+node_modules
+.local
+.pnpm-store
+**/.next
+**/*.tsbuildinfo
+# Applied migrations are immutable history.
+apps/api/migrations
