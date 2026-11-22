@@ -1,0 +1,29 @@
+{
+  "name": "@homebell/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HomeBell API contract v1 (OpenAPI 3.1 + AsyncAPI 3.0) and generated TypeScript types. Single source of truth (ADR-0004).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./openapi.v1.yaml": "./bundled/openapi.v1.yaml",
+    "./realtime.asyncapi.yaml": "./realtime/realtime.asyncapi.yaml"
+  },
+  "scripts": {
+    "bundle": "redocly bundle homebell@v1 --output bundled/openapi.v1.yaml",
+    "lint": "redocly lint homebell@v1 && node scripts/validate-realtime.mjs",
+    "generate": "pnpm run bundle && openapi-typescript --enum-values --alphabetize && node scripts/generate.mjs && prettier --write src/generated ERROR_CODES.md",
+    "check": "pnpm run generate && git diff --exit-code -- bundled src/generated ERROR_CODES.md",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test scripts/*.test.mjs"
+  },
+  "devDependencies": {
+    "@asyncapi/parser": "3.6.6",
+    "@homebell/config": "workspace:*",
+    "@redocly/cli": "2.82.0",
+    "js-yaml": "4.1.0",
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.10.1",
+    "typescript": "5.9.3"
+  }
+}

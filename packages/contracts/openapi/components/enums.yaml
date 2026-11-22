@@ -1,0 +1,365 @@
+# Shared state enums — normative. See docs/architecture/06-state-machines.md.
+# Clients MUST tolerate unknown values (render a neutral fallback); new values are additive (ADR-0004).
+
+TenantLifecycleState:
+  type: string
+  enum:
+    [
+      draft,
+      trial,
+      pilot_free,
+      active_paid,
+      manual_override,
+      suspended,
+      deactivated,
+      cancelled,
+      offboarding,
+      expired,
+    ]
+TenantLifecycleAction:
+  type: string
+  enum:
+    [
+      activate,
+      start_trial,
+      convert_to_paid,
+      grant_free,
+      apply_manual_override,
+      extend_expiry,
+      suspend,
+      deactivate,
+      cancel,
+      start_offboarding,
+      reinstate,
+    ]
+OperationalMode:
+  type: string
+  description: Derived from lifecycle state. full = normal operation.
+  enum: [setup, full, read_only, blocked, export_only]
+LifecycleReasonCode:
+  type: string
+  enum:
+    [
+      contract_signed,
+      trial_requested,
+      renewal,
+      pilot_program,
+      charity,
+      non_payment,
+      school_request,
+      policy_violation,
+      security_incident,
+      operational_error,
+      data_request,
+      other,
+    ]
+RefundStatus:
+  type: string
+  description: Informational only. HomeBell never processes refunds; refunds are handled manually outside the application.
+  enum: [none, refund_requested, refund_handled_manually, no_refund_due]
+DataPlacement:
+  type: string
+  enum: [shared, dedicated]
+PlanVersionStatus:
+  type: string
+  enum: [draft, published, retired]
+BillingPeriod:
+  type: string
+  enum: [annual]
+Currency:
+  type: string
+  enum: [USD]
+EntitlementKind:
+  type: string
+  enum: [feature, limit]
+EntitlementSource:
+  type: string
+  enum: [plan, override, lifecycle, flag, default]
+FeatureKey:
+  type: string
+  enum:
+    - dismissal.queue
+    - dismissal.display
+    - dismissal.location_rule
+    - dismissal.sent_out_step
+    - guardians.additional_purchase
+    - guardians.school_granted_seats
+    - imports.csv
+    - reports.standard
+    - reports.export
+    - branding.custom
+    - audio.announcements
+    - qr.verification
+    - campus.multi
+    - sso.enterprise
+LimitKey:
+  type: string
+  enum:
+    [
+      students.max,
+      staff.max,
+      displays.max,
+      additional_guardians.max_per_student,
+      otp.daily_budget,
+      imports.max_rows,
+    ]
+NoteCategory:
+  type: string
+  enum: [general, billing, refund, support, lifecycle, security]
+PlatformRole:
+  type: string
+  enum: [platform.super_admin, platform.ops_admin, platform.billing_ops, platform.support_analyst]
+SchoolRole:
+  type: string
+  enum: [school.admin, school.dispatcher, school.front_desk, school.reporting]
+GuardianRole:
+  type: string
+  enum: [guardian.primary, guardian.additional]
+Permission:
+  type: string
+  description: Fine-grained permission. UIs may use these to hide actions; the server is the only enforcement point.
+  enum:
+    - platform.tenants.read
+    - platform.tenants.write
+    - platform.lifecycle.write
+    - platform.plans.read
+    - platform.plans.write
+    - platform.subscriptions.write
+    - platform.overrides.write
+    - platform.flags.write
+    - platform.notes.read
+    - platform.notes.write
+    - platform.audit.read
+    - platform.users.manage
+    - platform.support_sessions.create
+    - platform.devices.override
+    - school.settings.read
+    - school.settings.write
+    - school.staff.manage
+    - school.students.read
+    - school.students.write
+    - school.imports.write
+    - school.guardians.read
+    - school.guardians.write
+    - school.guardians.block
+    - school.devices.override
+    - school.displays.manage
+    - school.queue.read
+    - school.queue.dispatch
+    - school.queue.resolve
+    - school.reports.read
+    - school.reports.export
+    - school.audit.read
+    - school.subscription.read
+MembershipState:
+  type: string
+  enum: [invited, active, deactivated]
+SessionKind:
+  type: string
+  enum: [staff, platform, guardian, display, support]
+SessionScope:
+  type: string
+  enum: [full, guardian.license_purchase, support.read_only]
+SessionRevokeReason:
+  type: string
+  enum:
+    [
+      logout,
+      device_transfer,
+      admin_action,
+      refresh_reuse,
+      account_deactivated,
+      tenant_blocked,
+      password_reset,
+      expired,
+    ]
+OtpPurpose:
+  type: string
+  enum: [login, invitation_redeem, device_transfer, suspicious_login, recovery, phone_change]
+OtpChannel:
+  type: string
+  enum: [sms]
+DevicePlatform:
+  type: string
+  enum: [android, ios]
+DeviceState:
+  type: string
+  enum: [active, revoked, transferred_out]
+CooldownOverrideReason:
+  type: string
+  enum: [lost_device, stolen_device, device_replaced, other]
+StudentStatus:
+  type: string
+  enum: [active, inactive]
+DismissalEligibility:
+  type: string
+  description: eligible = normal; hold = temporarily held by school (pickup blocked); not_eligible = e.g. bus-only.
+  enum: [eligible, hold, not_eligible]
+GuardianKind:
+  type: string
+  enum: [primary, additional]
+GuardianState:
+  type: string
+  enum: [pending_activation, active, blocked, deactivated, revoked, expired]
+Relationship:
+  type: string
+  enum:
+    [
+      mother,
+      father,
+      parent,
+      step_parent,
+      legal_guardian,
+      grandparent,
+      sibling,
+      aunt_uncle,
+      spouse,
+      driver,
+      nanny,
+      family_friend,
+      other,
+    ]
+InvitationState:
+  type: string
+  enum: [pending, redeemed, expired, revoked]
+LicenseSeatState:
+  type: string
+  enum: [available, assigned, expired, voided]
+LicenseSeatSource:
+  type: string
+  enum: [purchase, school_grant, platform_grant]
+LicenseValidityMode:
+  type: string
+  description: See ADR-0011.
+  enum: [permanent, temporary, valid_until_date, one_time]
+PickupRequestState:
+  type: string
+  enum: [requested, sent_out, acknowledged, cancelled, exception, resolved]
+PickupResolution:
+  type: string
+  enum:
+    [
+      guardian_confirmed_offline,
+      staff_confirmed_handoff,
+      student_not_collected,
+      request_in_error,
+      other,
+    ]
+PickupActorType:
+  type: string
+  enum: [guardian, staff, system]
+VerificationMethod:
+  type: string
+  description: Reserved for future QR/staff verification. MVP only uses `none`.
+  enum: [none]
+DisplayState:
+  type: string
+  enum: [pairing, active, revoked]
+DisplayNameFormat:
+  type: string
+  enum: [first_name_last_initial, initials, first_name]
+PairingSessionStatus:
+  type: string
+  enum: [pending, paired, expired]
+BillingProvider:
+  type: string
+  enum: [google_play, apple_app_store]
+PurchaseState:
+  type: string
+  enum: [pending, verified, voided, failed]
+PushProvider:
+  type: string
+  description: fcm is used on both Android and iOS (FCM delivers to iOS via APNs). apns is reserved for direct APNs delivery.
+  enum: [fcm, apns]
+NotificationType:
+  type: string
+  enum:
+    [
+      pickup_status,
+      pickup_reminder,
+      access_changed,
+      invitation_redeemed,
+      device_transferred,
+      license_expiring,
+      tenant_notice,
+      system,
+    ]
+ImportType:
+  type: string
+  enum: [students_with_guardians]
+ImportStatus:
+  type: string
+  enum: [validating, validated, committing, completed, failed]
+ImportRowStatus:
+  type: string
+  enum: [valid, warning, error]
+AuditActorType:
+  type: string
+  enum: [user, system, display, support, provider]
+AuditOutcome:
+  type: string
+  enum: [success, denied, failed]
+AuditAction:
+  type: string
+  enum:
+    - auth.login
+    - auth.login_failed
+    - auth.logout
+    - auth.mfa_enrolled
+    - auth.password_reset
+    - session.revoked
+    - otp.sent
+    - otp.verified
+    - otp.failed
+    - otp.locked
+    - device.registered
+    - device.transferred
+    - device.transfer_denied
+    - device.cooldown_overridden
+    - pickup.requested
+    - pickup.request_rejected
+    - pickup.sent_out
+    - pickup.acknowledged
+    - pickup.cancelled
+    - pickup.exception
+    - pickup.resolved
+    - invitation.created
+    - invitation.resent
+    - invitation.redeemed
+    - invitation.revoked
+    - seat.purchased
+    - seat.granted
+    - seat.voided
+    - guardian.created
+    - guardian.updated
+    - guardian.blocked
+    - guardian.unblocked
+    - guardian.deactivated
+    - guardian.reactivated
+    - guardian.revoked
+    - student.created
+    - student.updated
+    - student.deactivated
+    - import.committed
+    - staff.invited
+    - staff.role_changed
+    - staff.deactivated
+    - settings.updated
+    - display.paired
+    - display.revoked
+    - tenant.created
+    - tenant.updated
+    - tenant.lifecycle_changed
+    - subscription.changed
+    - plan.version_published
+    - override.applied
+    - override.revoked
+    - flag.updated
+    - note.added
+    - support_session.started
+    - support_session.ended
+    - platform_user.invited
+    - platform_user.updated
+SortDirection:
+  type: string
+  enum: [asc, desc]

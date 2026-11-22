@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../HomeBell.Modules.Reporting.Application/HomeBell.Modules.Reporting.Application.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/HomeBell.BuildingBlocks.Infrastructure/HomeBell.BuildingBlocks.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

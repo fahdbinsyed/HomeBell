@@ -1,0 +1,21 @@
+{
+  "name": "@homebell/api-client",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Typed HomeBell HTTP client (openapi-fetch over @homebell/contracts). Screens must use this, never fetch directly.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@homebell/contracts": "workspace:*",
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@homebell/config": "workspace:*",
+    "typescript": "5.9.3"
+  }
+}

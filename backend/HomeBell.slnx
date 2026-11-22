@@ -1,0 +1,70 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/HomeBell.BuildingBlocks.Application/HomeBell.BuildingBlocks.Application.csproj" />
+    <Project Path="src/BuildingBlocks/HomeBell.BuildingBlocks.Domain/HomeBell.BuildingBlocks.Domain.csproj" />
+    <Project Path="src/BuildingBlocks/HomeBell.BuildingBlocks.Infrastructure/HomeBell.BuildingBlocks.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Host/">
+    <Project Path="src/Host/HomeBell.Api/HomeBell.Api.csproj" />
+    <Project Path="src/Host/HomeBell.Worker/HomeBell.Worker.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Audit/">
+    <Project Path="src/Modules/Audit/HomeBell.Modules.Audit.Application/HomeBell.Modules.Audit.Application.csproj" />
+    <Project Path="src/Modules/Audit/HomeBell.Modules.Audit.Contracts/HomeBell.Modules.Audit.Contracts.csproj" />
+    <Project Path="src/Modules/Audit/HomeBell.Modules.Audit.Domain/HomeBell.Modules.Audit.Domain.csproj" />
+    <Project Path="src/Modules/Audit/HomeBell.Modules.Audit.Infrastructure/HomeBell.Modules.Audit.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Billing/">
+    <Project Path="src/Modules/Billing/HomeBell.Modules.Billing.Application/HomeBell.Modules.Billing.Application.csproj" />
+    <Project Path="src/Modules/Billing/HomeBell.Modules.Billing.Contracts/HomeBell.Modules.Billing.Contracts.csproj" />
+    <Project Path="src/Modules/Billing/HomeBell.Modules.Billing.Domain/HomeBell.Modules.Billing.Domain.csproj" />
+    <Project Path="src/Modules/Billing/HomeBell.Modules.Billing.Infrastructure/HomeBell.Modules.Billing.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Dismissal/">
+    <Project Path="src/Modules/Dismissal/HomeBell.Modules.Dismissal.Application/HomeBell.Modules.Dismissal.Application.csproj" />
+    <Project Path="src/Modules/Dismissal/HomeBell.Modules.Dismissal.Contracts/HomeBell.Modules.Dismissal.Contracts.csproj" />
+    <Project Path="src/Modules/Dismissal/HomeBell.Modules.Dismissal.Domain/HomeBell.Modules.Dismissal.Domain.csproj" />
+    <Project Path="src/Modules/Dismissal/HomeBell.Modules.Dismissal.Infrastructure/HomeBell.Modules.Dismissal.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Guardians/">
+    <Project Path="src/Modules/Guardians/HomeBell.Modules.Guardians.Application/HomeBell.Modules.Guardians.Application.csproj" />
+    <Project Path="src/Modules/Guardians/HomeBell.Modules.Guardians.Contracts/HomeBell.Modules.Guardians.Contracts.csproj" />
+    <Project Path="src/Modules/Guardians/HomeBell.Modules.Guardians.Domain/HomeBell.Modules.Guardians.Domain.csproj" />
+    <Project Path="src/Modules/Guardians/HomeBell.Modules.Guardians.Infrastructure/HomeBell.Modules.Guardians.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/">
+    <Project Path="src/Modules/Identity/HomeBell.Modules.Identity.Application/HomeBell.Modules.Identity.Application.csproj" />
+    <Project Path="src/Modules/Identity/HomeBell.Modules.Identity.Contracts/HomeBell.Modules.Identity.Contracts.csproj" />
+    <Project Path="src/Modules/Identity/HomeBell.Modules.Identity.Domain/HomeBell.Modules.Identity.Domain.csproj" />
+    <Project Path="src/Modules/Identity/HomeBell.Modules.Identity.Infrastructure/HomeBell.Modules.Identity.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Notifications/">
+    <Project Path="src/Modules/Notifications/HomeBell.Modules.Notifications.Application/HomeBell.Modules.Notifications.Application.csproj" />
+    <Project Path="src/Modules/Notifications/HomeBell.Modules.Notifications.Contracts/HomeBell.Modules.Notifications.Contracts.csproj" />
+    <Project Path="src/Modules/Notifications/HomeBell.Modules.Notifications.Domain/HomeBell.Modules.Notifications.Domain.csproj" />
+    <Project Path="src/Modules/Notifications/HomeBell.Modules.Notifications.Infrastructure/HomeBell.Modules.Notifications.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Platform/">
+    <Project Path="src/Modules/Platform/HomeBell.Modules.Platform.Application/HomeBell.Modules.Platform.Application.csproj" />
+    <Project Path="src/Modules/Platform/HomeBell.Modules.Platform.Contracts/HomeBell.Modules.Platform.Contracts.csproj" />
+    <Project Path="src/Modules/Platform/HomeBell.Modules.Platform.Domain/HomeBell.Modules.Platform.Domain.csproj" />
+    <Project Path="src/Modules/Platform/HomeBell.Modules.Platform.Infrastructure/HomeBell.Modules.Platform.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Reporting/">
+    <Project Path="src/Modules/Reporting/HomeBell.Modules.Reporting.Application/HomeBell.Modules.Reporting.Application.csproj" />
+    <Project Path="src/Modules/Reporting/HomeBell.Modules.Reporting.Contracts/HomeBell.Modules.Reporting.Contracts.csproj" />
+    <Project Path="src/Modules/Reporting/HomeBell.Modules.Reporting.Domain/HomeBell.Modules.Reporting.Domain.csproj" />
+    <Project Path="src/Modules/Reporting/HomeBell.Modules.Reporting.Infrastructure/HomeBell.Modules.Reporting.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Schools/">
+    <Project Path="src/Modules/Schools/HomeBell.Modules.Schools.Application/HomeBell.Modules.Schools.Application.csproj" />
+    <Project Path="src/Modules/Schools/HomeBell.Modules.Schools.Contracts/HomeBell.Modules.Schools.Contracts.csproj" />
+    <Project Path="src/Modules/Schools/HomeBell.Modules.Schools.Domain/HomeBell.Modules.Schools.Domain.csproj" />
+    <Project Path="src/Modules/Schools/HomeBell.Modules.Schools.Infrastructure/HomeBell.Modules.Schools.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HomeBell.ArchitectureTests/HomeBell.ArchitectureTests.csproj" />
+  </Folder>
+</Solution>

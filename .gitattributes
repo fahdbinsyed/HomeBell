@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.cs text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary
+packages/contracts/bundled/** linguist-generated=true
+packages/contracts/src/generated/** linguist-generated=true

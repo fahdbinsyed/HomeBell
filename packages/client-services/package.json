@@ -1,0 +1,20 @@
+{
+  "name": "@homebell/client-services",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Transport-agnostic client service interfaces (QueueFeed, PushService, OtpService, BillingService, SecureStore, DeviceIdentity, Clock). Mock and real implementations are selected by configuration.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@homebell/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@homebell/config": "workspace:*",
+    "typescript": "5.9.3"
+  }
+}

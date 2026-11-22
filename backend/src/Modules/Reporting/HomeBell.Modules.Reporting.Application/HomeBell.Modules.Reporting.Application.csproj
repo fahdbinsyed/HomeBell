@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../HomeBell.Modules.Reporting.Domain/HomeBell.Modules.Reporting.Domain.csproj" />
+    <ProjectReference Include="../HomeBell.Modules.Reporting.Contracts/HomeBell.Modules.Reporting.Contracts.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/HomeBell.BuildingBlocks.Application/HomeBell.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+</Project>

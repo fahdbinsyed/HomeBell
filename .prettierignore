@@ -1,0 +1,9 @@
+node_modules
+pnpm-lock.yaml
+.turbo
+dist
+.next
+coverage
+backend
+packages/contracts/bundled
+packages/contracts/src/generated

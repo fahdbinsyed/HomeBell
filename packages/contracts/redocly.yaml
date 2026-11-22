@@ -1,0 +1,51 @@
+apis:
+  homebell@v1:
+    root: ./openapi/openapi.yaml
+    x-openapi-ts:
+      output: ./src/generated/openapi.ts
+
+extends:
+  - recommended
+
+rules:
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-summary: error
+  operation-4xx-response: error
+  operation-2xx-response: error
+  tag-description: error
+  operation-tag-defined: error
+  security-defined: error
+  no-unused-components: warn
+  no-invalid-media-type-examples: error
+  # The spec documents the local dev server on purpose.
+  no-server-example.com: off
+  info-license: error
+
+  rule/operation-has-tags:
+    subject:
+      type: Operation
+      property: tags
+    assertions:
+      defined: true
+      nonEmpty: true
+    message: Every operation must be tagged.
+    severity: error
+
+  rule/operation-id-camel-case:
+    subject:
+      type: Operation
+      property: operationId
+    assertions:
+      casing: camelCase
+    message: operationId must be camelCase.
+    severity: error
+
+  rule/schema-properties-camel-case:
+    subject:
+      type: Schema
+      property: properties
+    assertions:
+      casing: camelCase
+    message: Schema property names must be camelCase.
+    severity: error

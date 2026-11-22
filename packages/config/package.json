@@ -1,0 +1,13 @@
+{
+  "name": "@homebell/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared TypeScript presets for HomeBell packages and apps. ESLint presets are added in Phase 1 with the first apps.",
+  "files": [
+    "tsconfig.*.json"
+  ],
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./tsconfig.library.json": "./tsconfig.library.json"
+  }
+}

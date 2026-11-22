@@ -1,0 +1,650 @@
+# Tenant plane: school operations (overview, classes, students, staff, settings, imports, displays).
+
+DashboardOverview:
+  type: object
+  required: [queueDate, requests, unresolved, students, guardians, displays, generatedAt]
+  properties:
+    queueDate:
+      $ref: './common.yaml#/LocalDate'
+    requests:
+      type: object
+      required: [total, requested, sentOut, acknowledged, cancelled, exception, resolved]
+      properties:
+        total:
+          type: integer
+        requested:
+          type: integer
+        sentOut:
+          type: integer
+        acknowledged:
+          type: integer
+        cancelled:
+          type: integer
+        exception:
+          type: integer
+        resolved:
+          type: integer
+    unresolved:
+      type: integer
+      description: Open exceptions + sent_out past the reminder threshold.
+    medianMinutesToAcknowledge:
+      type: [number, 'null']
+    students:
+      type: object
+      required: [active, inactive, onHold]
+      properties:
+        active:
+          type: integer
+        inactive:
+          type: integer
+        onHold:
+          type: integer
+    guardians:
+      type: object
+      required: [active, pendingActivation, blocked, deactivated, additionalActive]
+      properties:
+        active:
+          type: integer
+        pendingActivation:
+          type: integer
+        blocked:
+          type: integer
+        deactivated:
+          type: integer
+        additionalActive:
+          type: integer
+    displays:
+      type: object
+      required: [online, total]
+      properties:
+        online:
+          type: integer
+        total:
+          type: integer
+    deviceTransfersLast7Days:
+      type: integer
+    suspiciousTransfersLast7Days:
+      type: integer
+    generatedAt:
+      $ref: './common.yaml#/Timestamp'
+
+Section:
+  type: object
+  required: [id, classId, name, studentCount]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    classId:
+      $ref: './common.yaml#/Uuid'
+    name:
+      type: string
+    studentCount:
+      type: integer
+SchoolClass:
+  type: object
+  required: [id, name, sortOrder, sections, studentCount]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    name:
+      type: string
+    gradeLevel:
+      type: [string, 'null']
+    sortOrder:
+      type: integer
+    sections:
+      type: array
+      items:
+        $ref: '#/Section'
+    studentCount:
+      type: integer
+SchoolClassList:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/SchoolClass'
+CreateClassRequest:
+  type: object
+  required: [name]
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 60
+    gradeLevel:
+      type: string
+      maxLength: 30
+    sortOrder:
+      type: integer
+      default: 0
+UpdateClassRequest:
+  type: object
+  minProperties: 1
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 60
+    gradeLevel:
+      type: [string, 'null']
+      maxLength: 30
+    sortOrder:
+      type: integer
+CreateSectionRequest:
+  type: object
+  required: [name]
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 30
+UpdateSectionRequest:
+  type: object
+  required: [name]
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 30
+
+GuardianLinkSummary:
+  type: object
+  required: [guardianId, fullName, maskedPhone, kind, state, relationship, isPrimary]
+  properties:
+    guardianId:
+      $ref: './common.yaml#/Uuid'
+    fullName:
+      type: string
+    maskedPhone:
+      $ref: './common.yaml#/MaskedPhone'
+    kind:
+      $ref: './enums.yaml#/GuardianKind'
+    state:
+      $ref: './enums.yaml#/GuardianState'
+    relationship:
+      $ref: './enums.yaml#/Relationship'
+    isPrimary:
+      type: boolean
+Student:
+  type: object
+  required:
+    [
+      id,
+      firstName,
+      lastName,
+      classId,
+      className,
+      status,
+      dismissalEligibility,
+      guardianCount,
+      createdAt,
+      updatedAt,
+    ]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    externalRef:
+      type: [string, 'null']
+      description: School's own student number.
+    firstName:
+      type: string
+    lastName:
+      type: string
+    preferredName:
+      type: [string, 'null']
+    classId:
+      $ref: './common.yaml#/Uuid'
+    className:
+      type: string
+    sectionId:
+      type: [string, 'null']
+      format: uuid
+    sectionName:
+      type: [string, 'null']
+    status:
+      $ref: './enums.yaml#/StudentStatus'
+    dismissalEligibility:
+      $ref: './enums.yaml#/DismissalEligibility'
+    notes:
+      type: [string, 'null']
+    restrictionsNote:
+      type: [string, 'null']
+      description: Sensitive (e.g. custody restriction). Returned only to callers with school.students.write.
+    primaryGuardian:
+      oneOf:
+        - $ref: '#/GuardianLinkSummary'
+        - type: 'null'
+    guardianCount:
+      type: integer
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+    updatedAt:
+      $ref: './common.yaml#/Timestamp'
+StudentPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/Student'
+NewPrimaryGuardian:
+  type: object
+  required: [fullName, phone, relationship]
+  properties:
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    phone:
+      $ref: './common.yaml#/PhoneE164'
+    relationship:
+      $ref: './enums.yaml#/Relationship'
+CreateStudentRequest:
+  type: object
+  required: [firstName, lastName, classId, primaryGuardian]
+  properties:
+    externalRef:
+      type: string
+      maxLength: 50
+    firstName:
+      $ref: './common.yaml#/PersonName'
+    lastName:
+      $ref: './common.yaml#/PersonName'
+    preferredName:
+      type: string
+      maxLength: 120
+    classId:
+      $ref: './common.yaml#/Uuid'
+    sectionId:
+      $ref: './common.yaml#/Uuid'
+    dismissalEligibility:
+      $ref: './enums.yaml#/DismissalEligibility'
+    notes:
+      $ref: './common.yaml#/Note'
+    restrictionsNote:
+      $ref: './common.yaml#/Note'
+    primaryGuardian:
+      description: Matched by phone to an existing guardian in this tenant, otherwise created as pending_activation.
+      $ref: '#/NewPrimaryGuardian'
+UpdateStudentRequest:
+  type: object
+  minProperties: 1
+  properties:
+    externalRef:
+      type: [string, 'null']
+      maxLength: 50
+    firstName:
+      $ref: './common.yaml#/PersonName'
+    lastName:
+      $ref: './common.yaml#/PersonName'
+    preferredName:
+      type: [string, 'null']
+      maxLength: 120
+    classId:
+      $ref: './common.yaml#/Uuid'
+    sectionId:
+      type: [string, 'null']
+      format: uuid
+    dismissalEligibility:
+      $ref: './enums.yaml#/DismissalEligibility'
+    notes:
+      type: [string, 'null']
+      maxLength: 2000
+    restrictionsNote:
+      type: [string, 'null']
+      maxLength: 2000
+NoteRequest:
+  type: object
+  properties:
+    note:
+      $ref: './common.yaml#/Note'
+
+StaffMember:
+  type: object
+  required: [membershipId, userId, fullName, email, role, status, mfaEnabled]
+  properties:
+    membershipId:
+      $ref: './common.yaml#/Uuid'
+    userId:
+      $ref: './common.yaml#/Uuid'
+    fullName:
+      type: string
+    email:
+      $ref: './common.yaml#/Email'
+    role:
+      $ref: './enums.yaml#/SchoolRole'
+    status:
+      $ref: './enums.yaml#/MembershipState'
+    mfaEnabled:
+      type: boolean
+    lastLoginAt:
+      type: [string, 'null']
+      format: date-time
+StaffInvitation:
+  type: object
+  required: [id, email, fullName, role, expiresAt, invitedBy, createdAt]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    email:
+      $ref: './common.yaml#/Email'
+    fullName:
+      type: string
+    role:
+      $ref: './enums.yaml#/SchoolRole'
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+    invitedBy:
+      $ref: './common.yaml#/ActorRef'
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+StaffList:
+  type: object
+  required: [members, pendingInvitations]
+  properties:
+    members:
+      type: array
+      items:
+        $ref: '#/StaffMember'
+    pendingInvitations:
+      type: array
+      items:
+        $ref: '#/StaffInvitation'
+CreateStaffInvitationRequest:
+  type: object
+  required: [email, fullName, role]
+  properties:
+    email:
+      $ref: './common.yaml#/Email'
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    role:
+      $ref: './enums.yaml#/SchoolRole'
+UpdateStaffMemberRequest:
+  type: object
+  required: [role]
+  properties:
+    role:
+      $ref: './enums.yaml#/SchoolRole'
+
+DismissalWindow:
+  type: object
+  required: [dayOfWeek, opensAt, closesAt]
+  properties:
+    dayOfWeek:
+      type: integer
+      minimum: 1
+      maximum: 7
+      description: ISO-8601 day of week (1 = Monday).
+    opensAt:
+      $ref: './common.yaml#/LocalTime'
+    closesAt:
+      $ref: './common.yaml#/LocalTime'
+TenantSettings:
+  type: object
+  required: [dismissal, locationRule, display, branding, notifications, security, locale]
+  properties:
+    dismissal:
+      type: object
+      required: [windows, sentOutStepEnabled, timeouts]
+      properties:
+        windows:
+          type: array
+          maxItems: 14
+          items:
+            $ref: '#/DismissalWindow'
+        sentOutStepEnabled:
+          type: boolean
+        timeouts:
+          type: object
+          required:
+            [sentOutReminderMinutes, sentOutExceptionMinutes, requestedStaleMinutes, endOfDayTime]
+          properties:
+            sentOutReminderMinutes:
+              type: integer
+              minimum: 1
+              maximum: 30
+            sentOutExceptionMinutes:
+              type: integer
+              minimum: 5
+              maximum: 60
+            requestedStaleMinutes:
+              type: integer
+              minimum: 10
+              maximum: 120
+            endOfDayTime:
+              $ref: './common.yaml#/LocalTime'
+    locationRule:
+      type: object
+      required: [enabled, radiusMeters, maxAccuracyMeters]
+      properties:
+        enabled:
+          type: boolean
+          description: Requires feature dismissal.location_rule.
+        center:
+          oneOf:
+            - $ref: './common.yaml#/GeoPoint'
+            - type: 'null'
+        radiusMeters:
+          type: integer
+          minimum: 50
+          maximum: 5000
+        maxAccuracyMeters:
+          type: integer
+          minimum: 10
+          maximum: 1000
+    display:
+      type: object
+      required: [nameFormat, showClass, showSection, theme]
+      properties:
+        nameFormat:
+          $ref: './enums.yaml#/DisplayNameFormat'
+        showClass:
+          type: boolean
+        showSection:
+          type: boolean
+        theme:
+          type: string
+          enum: [light, dark, auto]
+    branding:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          maxLength: 120
+        logoUrl:
+          type: [string, 'null']
+          format: uri
+        primaryColor:
+          type: [string, 'null']
+          pattern: '^#[0-9A-Fa-f]{6}$'
+    notifications:
+      type: object
+      required: [dailyDigestEnabled]
+      properties:
+        dailyDigestEnabled:
+          type: boolean
+    security:
+      type: object
+      required: [staffMfaRequired]
+      properties:
+        staffMfaRequired:
+          type: boolean
+    locale:
+      type: string
+      maxLength: 10
+TenantSubscriptionView:
+  type: object
+  required: [state, operationalMode, termStartDate, termEndDate, limits]
+  properties:
+    state:
+      $ref: './enums.yaml#/TenantLifecycleState'
+    operationalMode:
+      $ref: './enums.yaml#/OperationalMode'
+    planName:
+      type: [string, 'null']
+    expiresAt:
+      type: [string, 'null']
+      format: date-time
+    daysUntilExpiry:
+      type: [integer, 'null']
+    termStartDate:
+      $ref: './common.yaml#/LocalDate'
+    termEndDate:
+      $ref: './common.yaml#/LocalDate'
+    limits:
+      type: array
+      items:
+        $ref: './platform.yaml#/EffectiveLimit'
+
+ImportJob:
+  type: object
+  required: [id, type, status, fileName, createdAt, createdBy, summary]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    type:
+      $ref: './enums.yaml#/ImportType'
+    status:
+      $ref: './enums.yaml#/ImportStatus'
+    fileName:
+      type: string
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+    createdBy:
+      $ref: './common.yaml#/ActorRef'
+    committedAt:
+      type: [string, 'null']
+      format: date-time
+    failureReason:
+      type: [string, 'null']
+    summary:
+      type: object
+      required:
+        [
+          totalRows,
+          validRows,
+          warningRows,
+          errorRows,
+          studentsToCreate,
+          studentsToUpdate,
+          guardiansToCreate,
+          guardiansToLink,
+        ]
+      properties:
+        totalRows:
+          type: integer
+        validRows:
+          type: integer
+        warningRows:
+          type: integer
+        errorRows:
+          type: integer
+        studentsToCreate:
+          type: integer
+        studentsToUpdate:
+          type: integer
+        guardiansToCreate:
+          type: integer
+        guardiansToLink:
+          type: integer
+ImportRow:
+  type: object
+  required: [rowNumber, status, data, messages]
+  properties:
+    rowNumber:
+      type: integer
+    status:
+      $ref: './enums.yaml#/ImportRowStatus'
+    data:
+      type: object
+      additionalProperties:
+        type: [string, 'null']
+    messages:
+      type: array
+      items:
+        $ref: './common.yaml#/FieldError'
+ImportRowPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/ImportRow'
+ImportUpload:
+  type: object
+  required: [type, file]
+  properties:
+    type:
+      $ref: './enums.yaml#/ImportType'
+    file:
+      type: string
+      format: binary
+      description: 'CSV (UTF-8). Columns: student_external_ref, student_first_name, student_last_name, class, section, guardian_full_name, guardian_phone, guardian_relationship. Max 5 MB.'
+
+Display:
+  type: object
+  required: [id, name, state, online, pairedAt, pairedBy]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    name:
+      type: string
+    zone:
+      type: [string, 'null']
+    state:
+      $ref: './enums.yaml#/DisplayState'
+    online:
+      type: boolean
+      description: Heartbeat within the last 2 minutes.
+    pairedAt:
+      $ref: './common.yaml#/Timestamp'
+    pairedBy:
+      $ref: './common.yaml#/ActorRef'
+    lastHeartbeatAt:
+      type: [string, 'null']
+      format: date-time
+    appVersion:
+      type: [string, 'null']
+DisplayList:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/Display'
+PairDisplayRequest:
+  type: object
+  required: [pairingCode, name]
+  properties:
+    pairingCode:
+      type: string
+      pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{8}$'
+      description: 8-char Crockford base32, case-insensitive (server normalises).
+    name:
+      type: string
+      minLength: 1
+      maxLength: 60
+    zone:
+      type: string
+      maxLength: 40
+UpdateDisplayRequest:
+  type: object
+  minProperties: 1
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 60
+    zone:
+      type: [string, 'null']
+      maxLength: 40

@@ -1,0 +1,28 @@
+{
+  "name": "homebell",
+  "private": true,
+  "description": "HomeBell — multi-tenant school pickup and dismissal platform (Powered by neuXplus)",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=10.34.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "contracts:lint": "pnpm --filter @homebell/contracts run lint",
+    "contracts:generate": "pnpm --filter @homebell/contracts run generate",
+    "contracts:check": "pnpm --filter @homebell/contracts run check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "backend:build": "cd backend && dotnet build HomeBell.slnx",
+    "backend:test": "cd backend && dotnet test --solution HomeBell.slnx"
+  },
+  "devDependencies": {
+    "prettier": "3.10.1",
+    "turbo": "2.11.13",
+    "typescript": "5.9.3"
+  }
+}

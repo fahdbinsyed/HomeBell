@@ -1,0 +1,46 @@
+# Node / JS
+node_modules/
+.pnpm-store/
+.turbo/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+.expo/
+web-build/
+android/
+ios/
+npm-debug.log*
+pnpm-debug.log*
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+
+# Env / secrets — never commit
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+service-account*.json
+appsettings.*.local.json
+.claude/settings.local.json
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "generate": {
+      "inputs": ["openapi/**", "realtime/**", "scripts/**", "redocly.yaml"],
+      "outputs": ["bundled/**", "src/generated/**"]
+    },
+    "build": {
+      "dependsOn": ["^build", "generate"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build", "generate"]
+    },
+    "lint": {
+      "dependsOn": ["generate"]
+    },
+    "test": {
+      "dependsOn": ["^build", "generate"],
+      "outputs": ["coverage/**"]
+    },
+    "check": {
+      "dependsOn": ["generate"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

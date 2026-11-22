@@ -1,0 +1,790 @@
+# Control plane: tenants, lifecycle, plans, subscriptions, entitlements, notes, flags, support.
+
+TenantFlag:
+  type: string
+  enum: [expiring_soon, over_limit, suspicious_transfers, no_recent_activity, setup_incomplete]
+TenantContact:
+  type: object
+  required: [fullName, email]
+  properties:
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    email:
+      $ref: './common.yaml#/Email'
+    phone:
+      oneOf:
+        - $ref: './common.yaml#/PhoneE164'
+        - type: 'null'
+TenantSummary:
+  type: object
+  required:
+    [
+      id,
+      slug,
+      name,
+      state,
+      operationalMode,
+      countryCode,
+      region,
+      studentCount,
+      activeGuardianCount,
+      flags,
+      createdAt,
+    ]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    slug:
+      type: string
+      pattern: '^[a-z0-9](?:[a-z0-9-]{1,46}[a-z0-9])$'
+    name:
+      type: string
+    state:
+      $ref: './enums.yaml#/TenantLifecycleState'
+    operationalMode:
+      $ref: './enums.yaml#/OperationalMode'
+    countryCode:
+      $ref: './common.yaml#/CountryCode'
+    region:
+      type: string
+      description: Hosting region key (e.g. "us-east"). See ADR-0012.
+    planName:
+      type: [string, 'null']
+    expiresAt:
+      type: [string, 'null']
+      format: date-time
+    studentCount:
+      type: integer
+    activeGuardianCount:
+      type: integer
+    lastActivityAt:
+      type: [string, 'null']
+      format: date-time
+    flags:
+      type: array
+      items:
+        $ref: '#/TenantFlag'
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+TenantDetail:
+  allOf:
+    - $ref: '#/TenantSummary'
+    - type: object
+      required:
+        [
+          timezone,
+          termStartDate,
+          termEndDate,
+          dataPlacement,
+          primaryContact,
+          allowedActions,
+          updatedAt,
+        ]
+      properties:
+        legalName:
+          type: [string, 'null']
+        timezone:
+          $ref: './common.yaml#/IanaTimezone'
+        termStartDate:
+          $ref: './common.yaml#/LocalDate'
+        termEndDate:
+          $ref: './common.yaml#/LocalDate'
+        dataPlacement:
+          $ref: './enums.yaml#/DataPlacement'
+        previousOperationalState:
+          oneOf:
+            - $ref: './enums.yaml#/TenantLifecycleState'
+            - type: 'null'
+        primaryContact:
+          $ref: '#/TenantContact'
+        subscription:
+          oneOf:
+            - $ref: '#/TenantSubscription'
+            - type: 'null'
+        allowedActions:
+          type: array
+          description: Lifecycle actions valid from the current state AND permitted for the caller.
+          items:
+            $ref: './enums.yaml#/TenantLifecycleAction'
+        updatedAt:
+          $ref: './common.yaml#/Timestamp'
+TenantPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/TenantSummary'
+CreateTenantRequest:
+  type: object
+  required:
+    [
+      name,
+      slug,
+      countryCode,
+      region,
+      timezone,
+      termStartDate,
+      termEndDate,
+      initialState,
+      primaryContact,
+    ]
+  properties:
+    name:
+      type: string
+      minLength: 2
+      maxLength: 200
+    slug:
+      type: string
+      pattern: '^[a-z0-9](?:[a-z0-9-]{1,46}[a-z0-9])$'
+    legalName:
+      type: string
+      maxLength: 200
+    countryCode:
+      $ref: './common.yaml#/CountryCode'
+    region:
+      type: string
+    timezone:
+      $ref: './common.yaml#/IanaTimezone'
+    termStartDate:
+      $ref: './common.yaml#/LocalDate'
+    termEndDate:
+      $ref: './common.yaml#/LocalDate'
+    initialState:
+      type: string
+      enum: [draft, trial, pilot_free]
+    expiresAt:
+      type: string
+      format: date-time
+      description: Required when initialState = trial.
+    planVersionId:
+      $ref: './common.yaml#/Uuid'
+    primaryContact:
+      $ref: '#/TenantContact'
+    inviteSchoolAdmin:
+      type: boolean
+      default: true
+      description: Send a school-admin invitation to the primary contact.
+    note:
+      $ref: './common.yaml#/Note'
+UpdateTenantRequest:
+  type: object
+  minProperties: 1
+  properties:
+    name:
+      type: string
+      minLength: 2
+      maxLength: 200
+    legalName:
+      type: [string, 'null']
+      maxLength: 200
+    timezone:
+      $ref: './common.yaml#/IanaTimezone'
+    termStartDate:
+      $ref: './common.yaml#/LocalDate'
+    termEndDate:
+      $ref: './common.yaml#/LocalDate'
+    primaryContact:
+      $ref: '#/TenantContact'
+LifecycleTransitionRequest:
+  type: object
+  required: [action, expectedState, reasonCode]
+  properties:
+    action:
+      $ref: './enums.yaml#/TenantLifecycleAction'
+    expectedState:
+      $ref: './enums.yaml#/TenantLifecycleState'
+    reasonCode:
+      $ref: './enums.yaml#/LifecycleReasonCode'
+    note:
+      $ref: './common.yaml#/Note'
+    expiresAt:
+      type: string
+      format: date-time
+      description: Required for start_trial, activate, convert_to_paid, extend_expiry; optional for grant_free / apply_manual_override.
+    targetState:
+      description: Optional explicit target for reinstate (defaults to previousOperationalState).
+      type: string
+      enum: [trial, pilot_free, active_paid, manual_override]
+    planVersionId:
+      $ref: './common.yaml#/Uuid'
+    retentionDays:
+      type: integer
+      minimum: 30
+      maximum: 365
+      description: For start_offboarding.
+    refundStatus:
+      $ref: './enums.yaml#/RefundStatus'
+    confirmTenantName:
+      type: string
+      description: Required for deactivate, cancel and start_offboarding — must equal the tenant name.
+LifecycleHistoryEntry:
+  type: object
+  required: [id, action, fromState, toState, reasonCode, actor, at]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    action:
+      type: string
+      description: A TenantLifecycleAction, or "create" / "expire" (system).
+    fromState:
+      oneOf:
+        - $ref: './enums.yaml#/TenantLifecycleState'
+        - type: 'null'
+    toState:
+      $ref: './enums.yaml#/TenantLifecycleState'
+    reasonCode:
+      $ref: './enums.yaml#/LifecycleReasonCode'
+    note:
+      type: [string, 'null']
+    expiresAt:
+      type: [string, 'null']
+      format: date-time
+    refundStatus:
+      $ref: './enums.yaml#/RefundStatus'
+    actor:
+      $ref: './common.yaml#/ActorRef'
+    at:
+      $ref: './common.yaml#/Timestamp'
+LifecycleHistoryPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/LifecycleHistoryEntry'
+
+FeatureMap:
+  type: object
+  description: Keys are FeatureKey values.
+  additionalProperties:
+    type: boolean
+LimitMap:
+  type: object
+  description: Keys are LimitKey values; null = unlimited.
+  additionalProperties:
+    type: [integer, 'null']
+SubscriptionPlan:
+  type: object
+  required: [id, code, name, isPublic, versions]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    code:
+      type: string
+      pattern: '^[a-z0-9_]{2,40}$'
+    name:
+      type: string
+    description:
+      type: [string, 'null']
+    isPublic:
+      type: boolean
+    versions:
+      type: array
+      items:
+        $ref: '#/PlanVersion'
+PlanVersion:
+  type: object
+  required: [id, planId, version, status, price, billingPeriod, features, limits, createdAt]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    planId:
+      $ref: './common.yaml#/Uuid'
+    planName:
+      type: string
+    version:
+      type: integer
+      minimum: 1
+    status:
+      $ref: './enums.yaml#/PlanVersionStatus'
+    price:
+      $ref: './common.yaml#/Money'
+    billingPeriod:
+      $ref: './enums.yaml#/BillingPeriod'
+    features:
+      $ref: '#/FeatureMap'
+    limits:
+      $ref: '#/LimitMap'
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+    publishedAt:
+      type: [string, 'null']
+      format: date-time
+CreatePlanRequest:
+  type: object
+  required: [code, name, isPublic]
+  properties:
+    code:
+      type: string
+      pattern: '^[a-z0-9_]{2,40}$'
+    name:
+      type: string
+      maxLength: 100
+    description:
+      type: string
+      maxLength: 1000
+    isPublic:
+      type: boolean
+CreatePlanVersionRequest:
+  type: object
+  required: [price, features, limits]
+  properties:
+    price:
+      $ref: './common.yaml#/Money'
+    features:
+      $ref: '#/FeatureMap'
+    limits:
+      $ref: '#/LimitMap'
+TenantSubscription:
+  type: object
+  required: [id, tenantId, planVersion, startsAt, endsAt, createdAt, createdBy]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    planVersion:
+      $ref: '#/PlanVersion'
+    startsAt:
+      $ref: './common.yaml#/Timestamp'
+    endsAt:
+      $ref: './common.yaml#/Timestamp'
+    billingReference:
+      type: [string, 'null']
+      description: Free-text invoice / PO reference. HomeBell does not integrate school payments in MVP.
+    createdBy:
+      $ref: './common.yaml#/ActorRef'
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+SetSubscriptionRequest:
+  type: object
+  required: [planVersionId, startsAt, endsAt]
+  properties:
+    planVersionId:
+      $ref: './common.yaml#/Uuid'
+    startsAt:
+      $ref: './common.yaml#/Timestamp'
+    endsAt:
+      $ref: './common.yaml#/Timestamp'
+    billingReference:
+      type: string
+      maxLength: 200
+    note:
+      $ref: './common.yaml#/Note'
+EffectiveFeature:
+  type: object
+  required: [key, enabled, source]
+  properties:
+    key:
+      $ref: './enums.yaml#/FeatureKey'
+    enabled:
+      type: boolean
+    source:
+      $ref: './enums.yaml#/EntitlementSource'
+    overrideId:
+      type: [string, 'null']
+      format: uuid
+    expiresAt:
+      type: [string, 'null']
+      format: date-time
+EffectiveLimit:
+  type: object
+  required: [key, value, source]
+  properties:
+    key:
+      $ref: './enums.yaml#/LimitKey'
+    value:
+      type: [integer, 'null']
+      description: null = unlimited.
+    used:
+      type: [integer, 'null']
+    source:
+      $ref: './enums.yaml#/EntitlementSource'
+    overrideId:
+      type: [string, 'null']
+      format: uuid
+    expiresAt:
+      type: [string, 'null']
+      format: date-time
+EffectiveEntitlements:
+  type: object
+  required: [tenantId, state, operationalMode, features, limits, computedAt]
+  properties:
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    state:
+      $ref: './enums.yaml#/TenantLifecycleState'
+    operationalMode:
+      $ref: './enums.yaml#/OperationalMode'
+    features:
+      type: array
+      items:
+        $ref: '#/EffectiveFeature'
+    limits:
+      type: array
+      items:
+        $ref: '#/EffectiveLimit'
+    computedAt:
+      $ref: './common.yaml#/Timestamp'
+EntitlementOverride:
+  type: object
+  required: [id, tenantId, kind, key, value, reasonCode, note, createdBy, createdAt]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    kind:
+      $ref: './enums.yaml#/EntitlementKind'
+    key:
+      type: string
+      description: FeatureKey when kind = feature, LimitKey when kind = limit.
+    value:
+      type: [boolean, integer, 'null']
+    reasonCode:
+      $ref: './enums.yaml#/LifecycleReasonCode'
+    note:
+      type: string
+    expiresAt:
+      type: [string, 'null']
+      format: date-time
+    createdBy:
+      $ref: './common.yaml#/ActorRef'
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+    revokedAt:
+      type: [string, 'null']
+      format: date-time
+    revokedBy:
+      oneOf:
+        - $ref: './common.yaml#/ActorRef'
+        - type: 'null'
+    revokeNote:
+      type: [string, 'null']
+CreateEntitlementOverrideRequest:
+  type: object
+  required: [kind, key, value, reasonCode, note]
+  properties:
+    kind:
+      $ref: './enums.yaml#/EntitlementKind'
+    key:
+      type: string
+    value:
+      type: [boolean, integer, 'null']
+    reasonCode:
+      $ref: './enums.yaml#/LifecycleReasonCode'
+    note:
+      $ref: './common.yaml#/Note'
+    expiresAt:
+      type: string
+      format: date-time
+RevokeRequest:
+  type: object
+  required: [note]
+  properties:
+    note:
+      $ref: './common.yaml#/Note'
+TenantUsage:
+  type: object
+  required: [tenantId, asOf, students, guardians, staff, displays, pickups, otp, deviceTransfers]
+  properties:
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    asOf:
+      $ref: './common.yaml#/Timestamp'
+    students:
+      $ref: '#/UsageCounter'
+    staff:
+      $ref: '#/UsageCounter'
+    displays:
+      $ref: '#/UsageCounter'
+    guardians:
+      type: object
+      required:
+        [primaryActive, primaryPending, additionalActive, blocked, seatsAvailable, seatsAssigned]
+      properties:
+        primaryActive:
+          type: integer
+        primaryPending:
+          type: integer
+        additionalActive:
+          type: integer
+        blocked:
+          type: integer
+        seatsAvailable:
+          type: integer
+        seatsAssigned:
+          type: integer
+    pickups:
+      type: object
+      required: [today, last7Days, last30Days, unresolvedLast30Days]
+      properties:
+        today:
+          type: integer
+        last7Days:
+          type: integer
+        last30Days:
+          type: integer
+        unresolvedLast30Days:
+          type: integer
+    otp:
+      type: object
+      required: [sentToday, dailyBudget]
+      properties:
+        sentToday:
+          type: integer
+        dailyBudget:
+          type: [integer, 'null']
+    deviceTransfers:
+      type: object
+      required: [last30Days, suspiciousLast30Days]
+      properties:
+        last30Days:
+          type: integer
+        suspiciousLast30Days:
+          type: integer
+UsageCounter:
+  type: object
+  required: [used, limit]
+  properties:
+    used:
+      type: integer
+    limit:
+      type: [integer, 'null']
+SupportNote:
+  type: object
+  required: [id, tenantId, category, body, refundStatus, pinned, author, createdAt]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    category:
+      $ref: './enums.yaml#/NoteCategory'
+    body:
+      type: string
+    refundStatus:
+      $ref: './enums.yaml#/RefundStatus'
+    pinned:
+      type: boolean
+    author:
+      $ref: './common.yaml#/ActorRef'
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+SupportNotePage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/SupportNote'
+CreateSupportNoteRequest:
+  type: object
+  required: [category, body]
+  properties:
+    category:
+      $ref: './enums.yaml#/NoteCategory'
+    body:
+      type: string
+      minLength: 1
+      maxLength: 5000
+    refundStatus:
+      $ref: './enums.yaml#/RefundStatus'
+    pinned:
+      type: boolean
+      default: false
+FeatureFlag:
+  type: object
+  required: [key, description, enabledByDefault, tenantAllowList, tenantDenyList, updatedAt]
+  properties:
+    key:
+      type: string
+    description:
+      type: string
+    enabledByDefault:
+      type: boolean
+    tenantAllowList:
+      type: array
+      items:
+        $ref: './common.yaml#/Uuid'
+    tenantDenyList:
+      type: array
+      items:
+        $ref: './common.yaml#/Uuid'
+    updatedAt:
+      $ref: './common.yaml#/Timestamp'
+UpdateFeatureFlagRequest:
+  type: object
+  required: [enabledByDefault, tenantAllowList, tenantDenyList, note]
+  properties:
+    enabledByDefault:
+      type: boolean
+    tenantAllowList:
+      type: array
+      items:
+        $ref: './common.yaml#/Uuid'
+    tenantDenyList:
+      type: array
+      items:
+        $ref: './common.yaml#/Uuid'
+    note:
+      $ref: './common.yaml#/Note'
+CreateSupportSessionRequest:
+  type: object
+  required: [tenantId, reason, durationMinutes]
+  properties:
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    reason:
+      type: string
+      minLength: 10
+      maxLength: 1000
+    durationMinutes:
+      type: integer
+      minimum: 5
+      maximum: 30
+SupportSession:
+  type: object
+  required: [id, tenantId, tenantName, reason, startedAt, expiresAt, platformUser]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    tenantName:
+      type: string
+    reason:
+      type: string
+    platformUser:
+      $ref: './common.yaml#/ActorRef'
+    startedAt:
+      $ref: './common.yaml#/Timestamp'
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+    endedAt:
+      type: [string, 'null']
+      format: date-time
+SupportSessionCreated:
+  allOf:
+    - $ref: '#/SupportSession'
+    - type: object
+      required: [tokens]
+      properties:
+        tokens:
+          $ref: './identity.yaml#/TokenPair'
+SupportSessionPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/SupportSession'
+PlatformUser:
+  type: object
+  required: [userId, fullName, email, roles, status, mfaEnabled]
+  properties:
+    userId:
+      $ref: './common.yaml#/Uuid'
+    fullName:
+      type: string
+    email:
+      $ref: './common.yaml#/Email'
+    roles:
+      type: array
+      items:
+        $ref: './enums.yaml#/PlatformRole'
+    status:
+      $ref: './enums.yaml#/MembershipState'
+    mfaEnabled:
+      type: boolean
+    lastLoginAt:
+      type: [string, 'null']
+      format: date-time
+PlatformUserPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/PlatformUser'
+InvitePlatformUserRequest:
+  type: object
+  required: [email, fullName, roles]
+  properties:
+    email:
+      $ref: './common.yaml#/Email'
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    roles:
+      type: array
+      minItems: 1
+      items:
+        $ref: './enums.yaml#/PlatformRole'
+UpdatePlatformUserRequest:
+  type: object
+  minProperties: 1
+  properties:
+    roles:
+      type: array
+      minItems: 1
+      items:
+        $ref: './enums.yaml#/PlatformRole'
+    status:
+      type: string
+      enum: [active, deactivated]
+SchoolAdminInvitationRequest:
+  type: object
+  required: [email, fullName]
+  properties:
+    email:
+      $ref: './common.yaml#/Email'
+    fullName:
+      $ref: './common.yaml#/PersonName'
+PlatformDeviceTransfer:
+  type: object
+  required: [transfer, userId, fullName, tenants]
+  properties:
+    transfer:
+      $ref: './identity.yaml#/DeviceTransferRecord'
+    userId:
+      $ref: './common.yaml#/Uuid'
+    fullName:
+      type: string
+    maskedPhone:
+      $ref: './common.yaml#/MaskedPhone'
+    tenants:
+      type: array
+      items:
+        type: object
+        required: [tenantId, tenantName]
+        properties:
+          tenantId:
+            $ref: './common.yaml#/Uuid'
+          tenantName:
+            type: string
+PlatformDeviceTransferPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/PlatformDeviceTransfer'

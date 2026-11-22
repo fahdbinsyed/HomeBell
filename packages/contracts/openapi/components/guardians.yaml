@@ -1,0 +1,571 @@
+# Guardians, links, license seats, invitations, purchases.
+
+GuardianValidity:
+  type: object
+  required: [mode]
+  properties:
+    mode:
+      $ref: './enums.yaml#/LicenseValidityMode'
+    validFrom:
+      type: [string, 'null']
+      format: date-time
+    validUntil:
+      type: [string, 'null']
+      format: date-time
+      description: Computed end of access (null for permanent until term end / one_time until first pickup).
+    durationDays:
+      type: [integer, 'null']
+ValidityInput:
+  type: object
+  required: [mode]
+  description: >-
+    permanent → no extra fields; temporary → durationDays (1–30); valid_until_date → validUntil (≤ seat term end);
+    one_time → no extra fields (ends at first acknowledged pickup or 24 h).
+  properties:
+    mode:
+      $ref: './enums.yaml#/LicenseValidityMode'
+    durationDays:
+      type: integer
+      minimum: 1
+      maximum: 30
+    validUntil:
+      $ref: './common.yaml#/LocalDate'
+GuardianStudentRef:
+  type: object
+  required: [studentId, fullName, className, relationship, isPrimary]
+  properties:
+    studentId:
+      $ref: './common.yaml#/Uuid'
+    fullName:
+      type: string
+    className:
+      type: string
+    relationship:
+      $ref: './enums.yaml#/Relationship'
+    isPrimary:
+      type: boolean
+Guardian:
+  type: object
+  description: School-side view of a guardian profile.
+  required: [id, userId, kind, fullName, maskedPhone, state, students, createdAt]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    userId:
+      $ref: './common.yaml#/Uuid'
+    kind:
+      $ref: './enums.yaml#/GuardianKind'
+    fullName:
+      type: string
+    maskedPhone:
+      $ref: './common.yaml#/MaskedPhone'
+    phone:
+      description: Full number; only returned to callers with school.guardians.write.
+      oneOf:
+        - $ref: './common.yaml#/PhoneE164'
+        - type: 'null'
+    state:
+      $ref: './enums.yaml#/GuardianState'
+    stateReason:
+      type: [string, 'null']
+    stateChangedAt:
+      type: [string, 'null']
+      format: date-time
+    students:
+      type: array
+      items:
+        $ref: '#/GuardianStudentRef'
+    validity:
+      oneOf:
+        - $ref: '#/GuardianValidity'
+        - type: 'null'
+    invitedBy:
+      description: For additional guardians — the primary guardian who invited them.
+      oneOf:
+        - type: object
+          required: [guardianId, fullName]
+          properties:
+            guardianId:
+              $ref: './common.yaml#/Uuid'
+            fullName:
+              type: string
+        - type: 'null'
+    activatedAt:
+      type: [string, 'null']
+      format: date-time
+    lastActiveAt:
+      type: [string, 'null']
+      format: date-time
+    activeDevice:
+      oneOf:
+        - $ref: './identity.yaml#/DeviceSummary'
+        - type: 'null'
+    lastTransferAt:
+      type: [string, 'null']
+      format: date-time
+    nextTransferAllowedAt:
+      type: [string, 'null']
+      format: date-time
+    suspiciousTransfersLast30Days:
+      type: integer
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+GuardianPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/Guardian'
+GuardianLinkInput:
+  type: object
+  required: [studentId, relationship, isPrimary]
+  properties:
+    studentId:
+      $ref: './common.yaml#/Uuid'
+    relationship:
+      $ref: './enums.yaml#/Relationship'
+    isPrimary:
+      type: boolean
+CreateGuardianRequest:
+  type: object
+  description: School adds a primary guardian manually (additional guardians are created through invitations).
+  required: [fullName, phone, links]
+  properties:
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    phone:
+      $ref: './common.yaml#/PhoneE164'
+    links:
+      type: array
+      minItems: 1
+      items:
+        $ref: '#/GuardianLinkInput'
+UpdateGuardianRequest:
+  type: object
+  minProperties: 1
+  properties:
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    phone:
+      description: Phone change is audited; the guardian must verify the new number by OTP before it takes effect.
+      $ref: './common.yaml#/PhoneE164'
+GuardianStateChangeRequest:
+  type: object
+  required: [reason]
+  properties:
+    reason:
+      type: string
+      minLength: 3
+      maxLength: 500
+    note:
+      $ref: './common.yaml#/Note'
+GuardianDeviceInfo:
+  type: object
+  required: [transfers, overrides]
+  properties:
+    activeDevice:
+      oneOf:
+        - $ref: './identity.yaml#/DeviceSummary'
+        - type: 'null'
+    nextTransferAllowedAt:
+      type: [string, 'null']
+      format: date-time
+    transfers:
+      type: array
+      items:
+        $ref: './identity.yaml#/DeviceTransferRecord'
+    overrides:
+      type: array
+      items:
+        $ref: './identity.yaml#/CooldownOverride'
+    remainingSchoolOverridesThisTerm:
+      type: integer
+GrantSeatsRequest:
+  type: object
+  required: [primaryGuardianId, count, note]
+  properties:
+    primaryGuardianId:
+      $ref: './common.yaml#/Uuid'
+    count:
+      type: integer
+      minimum: 1
+      maximum: 10
+    note:
+      $ref: './common.yaml#/Note'
+
+PickupEligibility:
+  type: object
+  required: [eligible, locationRequired]
+  properties:
+    eligible:
+      type: boolean
+    reasonCode:
+      description: Why not eligible (same codes the create endpoint would return).
+      oneOf:
+        - $ref: './common.yaml#/ErrorCode'
+        - type: 'null'
+    windowOpensAt:
+      type: [string, 'null']
+      format: date-time
+    windowClosesAt:
+      type: [string, 'null']
+      format: date-time
+    locationRequired:
+      type: boolean
+ChildSummary:
+  type: object
+  required:
+    [studentId, tenantId, tenantName, firstName, lastName, className, relationship, myRole, pickup]
+  properties:
+    studentId:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    tenantName:
+      type: string
+    firstName:
+      type: string
+    lastName:
+      type: string
+    preferredName:
+      type: [string, 'null']
+    className:
+      type: string
+    sectionName:
+      type: [string, 'null']
+    relationship:
+      $ref: './enums.yaml#/Relationship'
+    myRole:
+      $ref: './enums.yaml#/GuardianKind'
+    pickup:
+      $ref: '#/PickupEligibility'
+    activeRequest:
+      oneOf:
+        - $ref: './dismissal.yaml#/GuardianPickupRequest'
+        - type: 'null'
+GuardianTenantContext:
+  type: object
+  required: [tenantId, tenantName, operationalMode, guardianId, guardianState, kind]
+  properties:
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    tenantName:
+      type: string
+    operationalMode:
+      $ref: './enums.yaml#/OperationalMode'
+    guardianId:
+      $ref: './common.yaml#/Uuid'
+    guardianState:
+      $ref: './enums.yaml#/GuardianState'
+    kind:
+      $ref: './enums.yaml#/GuardianKind'
+    validity:
+      oneOf:
+        - $ref: '#/GuardianValidity'
+        - type: 'null'
+    canPurchaseSeats:
+      type: boolean
+    logoUrl:
+      type: [string, 'null']
+    primaryColor:
+      type: [string, 'null']
+ChildList:
+  type: object
+  required: [items, tenants]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/ChildSummary'
+    tenants:
+      type: array
+      items:
+        $ref: '#/GuardianTenantContext'
+
+LicenseSeat:
+  type: object
+  required:
+    [
+      id,
+      tenantId,
+      ownerGuardianId,
+      source,
+      state,
+      termEndsAt,
+      reassignmentsUsed,
+      reassignmentsLimit,
+      createdAt,
+    ]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    ownerGuardianId:
+      $ref: './common.yaml#/Uuid'
+    source:
+      $ref: './enums.yaml#/LicenseSeatSource'
+    state:
+      $ref: './enums.yaml#/LicenseSeatState'
+    termEndsAt:
+      $ref: './common.yaml#/Timestamp'
+    reassignmentsUsed:
+      type: integer
+    reassignmentsLimit:
+      type: integer
+    assignedGuardianId:
+      type: [string, 'null']
+      format: uuid
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+LicenseSeatList:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/LicenseSeat'
+InvitationStatus:
+  type: object
+  required: [id, state, expiresAt, createdAt]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    state:
+      $ref: './enums.yaml#/InvitationState'
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+    redeemedAt:
+      type: [string, 'null']
+      format: date-time
+AdditionalGuardian:
+  type: object
+  description: Primary guardian's view of a delegate they manage.
+  required:
+    [guardianId, tenantId, fullName, maskedPhone, relationship, state, students, validity, seatId]
+  properties:
+    guardianId:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    fullName:
+      type: string
+    maskedPhone:
+      $ref: './common.yaml#/MaskedPhone'
+    relationship:
+      $ref: './enums.yaml#/Relationship'
+    state:
+      $ref: './enums.yaml#/GuardianState'
+    students:
+      type: array
+      items:
+        type: object
+        required: [studentId, firstName]
+        properties:
+          studentId:
+            $ref: './common.yaml#/Uuid'
+          firstName:
+            type: string
+    validity:
+      $ref: '#/GuardianValidity'
+    seatId:
+      $ref: './common.yaml#/Uuid'
+    invitation:
+      oneOf:
+        - $ref: '#/InvitationStatus'
+        - type: 'null'
+    activatedAt:
+      type: [string, 'null']
+      format: date-time
+    lastPickupAt:
+      type: [string, 'null']
+      format: date-time
+AdditionalGuardianList:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/AdditionalGuardian'
+CreateGuardianInvitationRequest:
+  type: object
+  required: [tenantId, seatId, fullName, phone, relationship, studentIds, validity]
+  properties:
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    seatId:
+      $ref: './common.yaml#/Uuid'
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    phone:
+      description: Must differ from the primary guardian's phone. OTP is only ever sent to this number.
+      $ref: './common.yaml#/PhoneE164'
+    relationship:
+      $ref: './enums.yaml#/Relationship'
+    studentIds:
+      type: array
+      minItems: 1
+      items:
+        $ref: './common.yaml#/Uuid'
+    validity:
+      $ref: '#/ValidityInput'
+GuardianInvitationCreated:
+  type: object
+  required: [guardian, code, deepLink, expiresAt]
+  properties:
+    guardian:
+      $ref: '#/AdditionalGuardian'
+    code:
+      type: string
+      description: 10-char Crockford base32 invitation code. Shown once; only its hash is stored.
+    deepLink:
+      type: string
+      format: uri
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+UpdateAdditionalGuardianRequest:
+  type: object
+  minProperties: 1
+  properties:
+    validity:
+      $ref: '#/ValidityInput'
+    studentIds:
+      type: array
+      minItems: 1
+      items:
+        $ref: './common.yaml#/Uuid'
+CreatePurchaseIntentRequest:
+  type: object
+  required: [tenantId, provider]
+  properties:
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    provider:
+      $ref: './enums.yaml#/BillingProvider'
+PurchaseIntent:
+  type: object
+  description: Store parameters for one purchase. Google Play uses obfuscatedAccountId/obfuscatedProfileId; Apple StoreKit 2 uses appAccountToken.
+  required: [intentId, provider, productId, expiresAt]
+  properties:
+    intentId:
+      $ref: './common.yaml#/Uuid'
+    provider:
+      $ref: './enums.yaml#/BillingProvider'
+    productId:
+      type: string
+      example: guardian_seat_term
+    obfuscatedAccountId:
+      type: [string, 'null']
+      description: Google Play — pass to BillingFlowParams; binds the purchase to this account.
+    obfuscatedProfileId:
+      type: [string, 'null']
+      description: Google Play — pass to BillingFlowParams; binds the purchase to this intent.
+    appAccountToken:
+      type: [string, 'null']
+      format: uuid
+      description: Apple StoreKit 2 — pass as the purchase option appAccountToken; binds the transaction to this intent.
+    displayPrice:
+      description: Informational; the store sheet shows the authoritative localized price.
+      oneOf:
+        - $ref: './common.yaml#/Money'
+        - type: 'null'
+    seatTermEndsAt:
+      $ref: './common.yaml#/Timestamp'
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+CompletePurchaseRequest:
+  type: object
+  required: [purchaseToken, productId]
+  properties:
+    purchaseToken:
+      type: string
+      maxLength: 16384
+      description: Google Play purchaseToken, or the Apple StoreKit 2 signed transaction (JWS).
+    productId:
+      type: string
+    orderId:
+      type: string
+      description: Google Play orderId or Apple transactionId (informational; the server verifies with the store).
+PurchaseResult:
+  type: object
+  required: [state]
+  properties:
+    state:
+      $ref: './enums.yaml#/PurchaseState'
+    seat:
+      oneOf:
+        - $ref: '#/LicenseSeat'
+        - type: 'null'
+
+InvitationLookupRequest:
+  type: object
+  required: [code]
+  properties:
+    code:
+      type: string
+      pattern: '^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z-]{10,12}$'
+      description: Case-insensitive; an optional hyphen after 5 chars is allowed.
+InvitationPreview:
+  type: object
+  required:
+    [
+      invitationId,
+      tenantName,
+      inviterFirstName,
+      maskedPhone,
+      studentFirstNames,
+      relationship,
+      expiresAt,
+    ]
+  properties:
+    invitationId:
+      $ref: './common.yaml#/Uuid'
+    tenantName:
+      type: string
+    inviterFirstName:
+      type: string
+    maskedPhone:
+      $ref: './common.yaml#/MaskedPhone'
+    studentFirstNames:
+      type: array
+      items:
+        type: string
+    relationship:
+      $ref: './enums.yaml#/Relationship'
+    validity:
+      $ref: '#/GuardianValidity'
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+InvitationOtpRequest:
+  type: object
+  required: [code, phone]
+  properties:
+    code:
+      type: string
+      description: The invitation code again (proves possession).
+    phone:
+      description: Must equal the invited number (INVITATION_PHONE_MISMATCH otherwise).
+      $ref: './common.yaml#/PhoneE164'
+InvitationRedeemRequest:
+  type: object
+  required: [challengeId, otpCode, device]
+  properties:
+    challengeId:
+      $ref: './common.yaml#/Uuid'
+    otpCode:
+      type: string
+      pattern: '^\d{6}$'
+    device:
+      $ref: './identity.yaml#/DeviceInfo'
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    termsVersion:
+      type: string

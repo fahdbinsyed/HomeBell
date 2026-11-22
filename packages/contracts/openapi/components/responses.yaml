@@ -1,0 +1,66 @@
+BadRequest:
+  description: Validation failed (VALIDATION_FAILED) or malformed request (BAD_REQUEST).
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+Unauthorized:
+  description: UNAUTHENTICATED, TOKEN_EXPIRED, SESSION_REVOKED, DEVICE_REVOKED.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+Forbidden:
+  description: FORBIDDEN, SCOPE_INSUFFICIENT, FEATURE_NOT_ENTITLED, TENANT_NOT_OPERATIONAL, TENANT_READ_ONLY.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+NotFound:
+  description: Resource not found or not in caller's scope (NOT_FOUND).
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+Conflict:
+  description: State conflict; see `code` (e.g. DUPLICATE_ACTIVE_REQUEST, INVALID_PICKUP_TRANSITION, IDEMPOTENCY_IN_PROGRESS).
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+Gone:
+  description: Resource expired or no longer available (e.g. QUEUE_CATCHUP_GAP_TOO_LARGE, INVITATION_EXPIRED).
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+PreconditionFailed:
+  description: If-Match ETag mismatch (PRECONDITION_FAILED).
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+Unprocessable:
+  description: Business rule rejected the request; see `code`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+TooManyRequests:
+  description: RATE_LIMITED or OTP limit codes. `Retry-After` header and `meta.retryAfterSeconds` are set.
+  headers:
+    Retry-After:
+      schema:
+        type: integer
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+ServerError:
+  description: INTERNAL_ERROR or SERVICE_UNAVAILABLE.
+  content:
+    application/problem+json:
+      schema:
+        $ref: './common.yaml#/Problem'
+NoContent:
+  description: Success, no body.

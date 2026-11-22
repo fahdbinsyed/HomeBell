@@ -1,0 +1,576 @@
+# Identity: staff/platform auth, guardian OTP auth, sessions, devices.
+
+TokenPair:
+  type: object
+  required:
+    [accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt, sessionId, scope]
+  properties:
+    accessToken:
+      type: string
+      description: JWT, ~10 min. Web BFF keeps it server-side; mobile keeps it in secure storage.
+    accessTokenExpiresAt:
+      $ref: './common.yaml#/Timestamp'
+    refreshToken:
+      type: string
+      description: Opaque, rotated on every use. Reuse of a rotated token revokes the session.
+    refreshTokenExpiresAt:
+      $ref: './common.yaml#/Timestamp'
+    sessionId:
+      $ref: './common.yaml#/Uuid'
+    scope:
+      $ref: './enums.yaml#/SessionScope'
+
+StaffLoginRequest:
+  type: object
+  required: [email, password]
+  properties:
+    email:
+      $ref: './common.yaml#/Email'
+    password:
+      type: string
+      minLength: 1
+      maxLength: 256
+      writeOnly: true
+    audience:
+      type: string
+      enum: [school, platform]
+      description: Which web app is signing in. Platform audience requires a platform role and MFA.
+StaffLoginResult:
+  oneOf:
+    - $ref: '#/StaffLoginAuthenticated'
+    - $ref: '#/StaffLoginMfaRequired'
+    - $ref: '#/StaffLoginMfaEnrollmentRequired'
+  discriminator:
+    propertyName: status
+    mapping:
+      authenticated: '#/StaffLoginAuthenticated'
+      mfa_required: '#/StaffLoginMfaRequired'
+      mfa_enrollment_required: '#/StaffLoginMfaEnrollmentRequired'
+StaffLoginAuthenticated:
+  type: object
+  required: [status, tokens, me]
+  properties:
+    status:
+      type: string
+      enum: [authenticated]
+    tokens:
+      $ref: '#/TokenPair'
+    me:
+      $ref: '#/Me'
+StaffLoginMfaRequired:
+  type: object
+  required: [status, mfaToken, expiresAt]
+  properties:
+    status:
+      type: string
+      enum: [mfa_required]
+    mfaToken:
+      type: string
+      description: Short-lived (5 min) proof that the password step succeeded.
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+StaffLoginMfaEnrollmentRequired:
+  type: object
+  required: [status, enrollmentToken, expiresAt]
+  properties:
+    status:
+      type: string
+      enum: [mfa_enrollment_required]
+    enrollmentToken:
+      type: string
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+MfaVerifyRequest:
+  type: object
+  required: [mfaToken, code]
+  properties:
+    mfaToken:
+      type: string
+    code:
+      type: string
+      pattern: '^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$'
+      description: 6-digit TOTP code or a recovery code.
+MfaEnrollStartRequest:
+  type: object
+  required: [enrollmentToken]
+  properties:
+    enrollmentToken:
+      type: string
+MfaEnrollStart:
+  type: object
+  required: [enrollmentId, secret, otpauthUri]
+  properties:
+    enrollmentId:
+      $ref: './common.yaml#/Uuid'
+    secret:
+      type: string
+      description: Base32 TOTP secret (shown once).
+    otpauthUri:
+      type: string
+MfaEnrollConfirmRequest:
+  type: object
+  required: [enrollmentToken, enrollmentId, code]
+  properties:
+    enrollmentToken:
+      type: string
+    enrollmentId:
+      $ref: './common.yaml#/Uuid'
+    code:
+      type: string
+      pattern: '^\d{6}$'
+MfaEnrollConfirmResult:
+  type: object
+  required: [tokens, me, recoveryCodes]
+  properties:
+    tokens:
+      $ref: '#/TokenPair'
+    me:
+      $ref: '#/Me'
+    recoveryCodes:
+      type: array
+      description: Shown once.
+      items:
+        type: string
+RefreshRequest:
+  type: object
+  required: [refreshToken]
+  properties:
+    refreshToken:
+      type: string
+PasswordForgotRequest:
+  type: object
+  required: [email]
+  properties:
+    email:
+      $ref: './common.yaml#/Email'
+PasswordResetRequest:
+  type: object
+  required: [token, newPassword]
+  properties:
+    token:
+      type: string
+    newPassword:
+      type: string
+      minLength: 12
+      maxLength: 256
+      writeOnly: true
+StaffInvitationPreview:
+  type: object
+  required: [email, tenantName, role, expiresAt, accountExists]
+  properties:
+    email:
+      $ref: './common.yaml#/Email'
+    tenantName:
+      type: string
+    role:
+      $ref: './enums.yaml#/SchoolRole'
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+    accountExists:
+      type: boolean
+      description: If true, the invitee signs in with their existing password instead of setting one.
+StaffInvitationAcceptRequest:
+  type: object
+  required: [token]
+  properties:
+    token:
+      type: string
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    password:
+      type: string
+      minLength: 12
+      maxLength: 256
+      writeOnly: true
+      description: Required when the account does not exist yet.
+RealtimeTicketRequest:
+  type: object
+  required: [hub]
+  properties:
+    hub:
+      type: string
+      enum: [queue, guardian]
+RealtimeTicket:
+  type: object
+  required: [ticket, expiresAt, hubUrl]
+  properties:
+    ticket:
+      type: string
+      description: Single-use, 60 s. Pass as `access_token` query parameter when connecting to the hub.
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+    hubUrl:
+      type: string
+
+Me:
+  type: object
+  required:
+    [
+      userId,
+      fullName,
+      locale,
+      session,
+      platformRoles,
+      platformPermissions,
+      memberships,
+      guardianProfiles,
+    ]
+  properties:
+    userId:
+      $ref: './common.yaml#/Uuid'
+    fullName:
+      type: string
+    email:
+      type: [string, 'null']
+    maskedPhone:
+      type: [string, 'null']
+    locale:
+      type: string
+      example: en
+    session:
+      type: object
+      required: [id, kind, scope]
+      properties:
+        id:
+          $ref: './common.yaml#/Uuid'
+        kind:
+          $ref: './enums.yaml#/SessionKind'
+        scope:
+          $ref: './enums.yaml#/SessionScope'
+        deviceId:
+          type: [string, 'null']
+          format: uuid
+        supportTenantId:
+          type: [string, 'null']
+          format: uuid
+          description: Set for support sessions (read-only tenant context).
+    platformRoles:
+      type: array
+      items:
+        $ref: './enums.yaml#/PlatformRole'
+    platformPermissions:
+      type: array
+      items:
+        $ref: './enums.yaml#/Permission'
+    memberships:
+      type: array
+      items:
+        $ref: '#/TenantMembershipSummary'
+    guardianProfiles:
+      type: array
+      items:
+        $ref: '#/GuardianProfileSummary'
+    termsAcceptanceRequired:
+      type: boolean
+    currentTermsVersion:
+      type: string
+TenantMembershipSummary:
+  type: object
+  required: [membershipId, tenantId, tenantName, role, permissions, tenantState, operationalMode]
+  properties:
+    membershipId:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    tenantName:
+      type: string
+    tenantSlug:
+      type: string
+    role:
+      $ref: './enums.yaml#/SchoolRole'
+    permissions:
+      type: array
+      items:
+        $ref: './enums.yaml#/Permission'
+    tenantState:
+      $ref: './enums.yaml#/TenantLifecycleState'
+    operationalMode:
+      $ref: './enums.yaml#/OperationalMode'
+    timezone:
+      $ref: './common.yaml#/IanaTimezone'
+GuardianProfileSummary:
+  type: object
+  required: [guardianId, tenantId, tenantName, kind, state, operationalMode]
+  properties:
+    guardianId:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    tenantName:
+      type: string
+    kind:
+      $ref: './enums.yaml#/GuardianKind'
+    state:
+      $ref: './enums.yaml#/GuardianState'
+    operationalMode:
+      $ref: './enums.yaml#/OperationalMode'
+    validUntil:
+      type: [string, 'null']
+      format: date-time
+
+DeviceInfo:
+  type: object
+  required: [platform, model, osVersion, appVersion]
+  properties:
+    platform:
+      $ref: './enums.yaml#/DevicePlatform'
+    model:
+      type: string
+      maxLength: 100
+    osVersion:
+      type: string
+      maxLength: 50
+    appVersion:
+      type: string
+      maxLength: 50
+OtpSendRequest:
+  type: object
+  required: [phone, purpose]
+  properties:
+    phone:
+      $ref: './common.yaml#/PhoneE164'
+    purpose:
+      type: string
+      enum: [login, suspicious_login, recovery]
+      description: Invitation redemption uses /v1/invitations/{id}/otp; device transfer reuses the login OTP via conflictToken.
+OtpChallenge:
+  type: object
+  required:
+    [challengeId, purpose, channel, maskedPhone, expiresAt, resendAvailableAt, remainingSends]
+  description: Returned identically whether or not the phone is registered (anti-enumeration).
+  properties:
+    challengeId:
+      $ref: './common.yaml#/Uuid'
+    purpose:
+      $ref: './enums.yaml#/OtpPurpose'
+    channel:
+      $ref: './enums.yaml#/OtpChannel'
+    maskedPhone:
+      $ref: './common.yaml#/MaskedPhone'
+    codeLength:
+      type: integer
+      enum: [6]
+      default: 6
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+    resendAvailableAt:
+      $ref: './common.yaml#/Timestamp'
+    remainingSends:
+      type: integer
+      minimum: 0
+      description: Sends left in the current window.
+OtpResendRequest:
+  type: object
+  required: [challengeId]
+  properties:
+    challengeId:
+      $ref: './common.yaml#/Uuid'
+OtpVerifyRequest:
+  type: object
+  required: [challengeId, code, device]
+  properties:
+    challengeId:
+      $ref: './common.yaml#/Uuid'
+    code:
+      type: string
+      pattern: '^\d{6}$'
+    device:
+      $ref: '#/DeviceInfo'
+OtpVerifyResult:
+  oneOf:
+    - $ref: '#/OtpVerifyAuthenticated'
+    - $ref: '#/OtpVerifyDeviceConflict'
+    - $ref: '#/OtpVerifyNoAccount'
+  discriminator:
+    propertyName: outcome
+    mapping:
+      authenticated: '#/OtpVerifyAuthenticated'
+      device_conflict: '#/OtpVerifyDeviceConflict'
+      no_account: '#/OtpVerifyNoAccount'
+OtpVerifyAuthenticated:
+  type: object
+  required: [outcome, tokens, me]
+  properties:
+    outcome:
+      type: string
+      enum: [authenticated]
+    tokens:
+      $ref: '#/TokenPair'
+    me:
+      $ref: '#/Me'
+    activatedProfiles:
+      type: array
+      description: Guardian profiles that moved from pending_activation to active during this verification.
+      items:
+        $ref: '#/GuardianProfileSummary'
+OtpVerifyDeviceConflict:
+  type: object
+  required: [outcome, conflict]
+  properties:
+    outcome:
+      type: string
+      enum: [device_conflict]
+    conflict:
+      $ref: '#/DeviceConflict'
+OtpVerifyNoAccount:
+  type: object
+  required: [outcome]
+  description: Phone verified, but no school has registered this phone. No account is created.
+  properties:
+    outcome:
+      type: string
+      enum: [no_account]
+DeviceConflict:
+  type: object
+  required: [conflictToken, expiresAt, activeDevice, transfer, purchase]
+  properties:
+    conflictToken:
+      type: string
+      description: Single use, 5 min. Proves OTP was completed on the new device.
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+    activeDevice:
+      $ref: '#/DeviceSummary'
+    transfer:
+      type: object
+      required: [allowed]
+      properties:
+        allowed:
+          type: boolean
+        cooldownEndsAt:
+          type: [string, 'null']
+          format: date-time
+          description: Set when allowed=false because of the 30-day cooldown.
+        overrideActive:
+          type: boolean
+          description: A school/platform cooldown override is waiting to be used.
+    purchase:
+      type: object
+      required: [available]
+      properties:
+        available:
+          type: boolean
+          description: True only for primary guardians whose tenant allows additional guardian purchase.
+DeviceSummary:
+  type: object
+  required: [deviceId, platform, model, state, activatedAt]
+  properties:
+    deviceId:
+      $ref: './common.yaml#/Uuid'
+    platform:
+      $ref: './enums.yaml#/DevicePlatform'
+    model:
+      type: string
+    state:
+      $ref: './enums.yaml#/DeviceState'
+    activatedAt:
+      $ref: './common.yaml#/Timestamp'
+    lastSeenAt:
+      type: [string, 'null']
+      format: date-time
+DeviceConflictTokenRequest:
+  type: object
+  required: [conflictToken]
+  properties:
+    conflictToken:
+      type: string
+DeviceTransferResult:
+  type: object
+  required: [tokens, me, transfer]
+  properties:
+    tokens:
+      $ref: '#/TokenPair'
+    me:
+      $ref: '#/Me'
+    transfer:
+      $ref: '#/DeviceTransferRecord'
+DeviceTransferRecord:
+  type: object
+  required: [id, toDevice, at, viaOverride, suspicious]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    fromDevice:
+      oneOf:
+        - $ref: '#/DeviceSummary'
+        - type: 'null'
+    toDevice:
+      $ref: '#/DeviceSummary'
+    at:
+      $ref: './common.yaml#/Timestamp'
+    viaOverride:
+      type: boolean
+    suspicious:
+      type: boolean
+DeviceStatus:
+  type: object
+  required: [currentDevice, isActiveDevice, transferHistory]
+  properties:
+    currentDevice:
+      $ref: '#/DeviceSummary'
+    isActiveDevice:
+      type: boolean
+    lastTransferAt:
+      type: [string, 'null']
+      format: date-time
+    nextTransferAllowedAt:
+      type: [string, 'null']
+      format: date-time
+    transferHistory:
+      type: array
+      items:
+        $ref: '#/DeviceTransferRecord'
+CooldownOverrideRequest:
+  type: object
+  required: [reasonCode, note]
+  properties:
+    reasonCode:
+      $ref: './enums.yaml#/CooldownOverrideReason'
+    note:
+      $ref: './common.yaml#/Note'
+CooldownOverride:
+  type: object
+  required: [id, userId, reasonCode, note, grantedBy, createdAt, expiresAt]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    userId:
+      $ref: './common.yaml#/Uuid'
+    reasonCode:
+      $ref: './enums.yaml#/CooldownOverrideReason'
+    note:
+      type: string
+    grantedBy:
+      $ref: './common.yaml#/ActorRef'
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+    usedAt:
+      type: [string, 'null']
+      format: date-time
+    remainingSchoolOverridesThisTerm:
+      type: [integer, 'null']
+TermsAcceptanceRequest:
+  type: object
+  required: [termsVersion]
+  properties:
+    termsVersion:
+      type: string
+GuardianProfileUpdate:
+  type: object
+  properties:
+    fullName:
+      $ref: './common.yaml#/PersonName'
+    locale:
+      type: string
+      maxLength: 10
+PushTokenRegistration:
+  type: object
+  required: [provider, token]
+  properties:
+    provider:
+      $ref: './enums.yaml#/PushProvider'
+    token:
+      type: string
+      maxLength: 4096

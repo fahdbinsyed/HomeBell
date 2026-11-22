@@ -1,0 +1,436 @@
+asyncapi: 3.0.0
+info:
+  title: HomeBell Realtime
+  version: 1.0.0
+  description: |
+    Realtime contract for HomeBell (SignalR). Written from the **server's** perspective:
+    `send` = server → client event, `receive` = client → server hub method.
+
+    **Transport**: ASP.NET Core SignalR over WebSocket (display may fall back to SSE). JSON protocol.
+    **Auth**: `access_token` query parameter —
+    web staff: single-use realtime ticket from `POST /v1/auth/realtime-tickets`;
+    mobile guardian: access token; display: display token.
+
+    **Delivery**: every server event is delivered through ONE client method named `event`, whose single
+    argument is an `EventEnvelope` discriminated by `type`. Clients:
+    1. ignore events whose `eventId` was already applied, and queue events with `seq <= lastSeq`;
+    2. on a gap (`seq > lastSeq + 1`) or reconnect, call the HTTP catch-up endpoint
+       (`GET /v1/t/{tenantId}/queue/events?afterSeq=` or `GET /v1/display/feed/events?afterSeq=`);
+    3. on `410 QUEUE_CATCHUP_GAP_TOO_LARGE` or a `queue.reset` event, reload the snapshot.
+    The database is the source of truth; realtime is a delivery channel (docs/architecture/04-realtime.md).
+
+    Payload schemas reference the bundled OpenAPI document so HTTP and realtime share one type system.
+  license:
+    name: Proprietary
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5080
+    protocol: ws
+    description: Local development API (SignalR hubs).
+
+channels:
+  queueHub:
+    address: /hubs/queue
+    title: Staff live queue hub
+    description: Staff with school.queue.read. Groups t:{tenantId}:queue and t:{tenantId}:class:{classId}.
+    servers:
+      - $ref: '#/servers/local'
+    messages:
+      queueRequestCreated:
+        $ref: '#/components/messages/queueRequestCreated'
+      queueRequestUpdated:
+        $ref: '#/components/messages/queueRequestUpdated'
+      queueReset:
+        $ref: '#/components/messages/queueReset'
+      tenantStateChanged:
+        $ref: '#/components/messages/tenantStateChanged'
+      sessionRevoked:
+        $ref: '#/components/messages/sessionRevoked'
+      joinTenantQueue:
+        $ref: '#/components/messages/joinTenantQueue'
+      subscribeClasses:
+        $ref: '#/components/messages/subscribeClasses'
+  displayHub:
+    address: /hubs/display
+    title: Public display hub
+    description: Display tokens only. Auto-joined to t:{tenantId}:display (or zone group). Privacy-reduced payloads.
+    servers:
+      - $ref: '#/servers/local'
+    messages:
+      displayItemUpserted:
+        $ref: '#/components/messages/displayItemUpserted'
+      displayItemRemoved:
+        $ref: '#/components/messages/displayItemRemoved'
+      queueReset:
+        $ref: '#/components/messages/queueReset'
+      displayRevoked:
+        $ref: '#/components/messages/displayRevoked'
+      displayHello:
+        $ref: '#/components/messages/displayHello'
+  guardianHub:
+    address: /hubs/guardian
+    title: Guardian hub
+    description: Guardian access tokens. Auto-joined to u:{userId}.
+    servers:
+      - $ref: '#/servers/local'
+    messages:
+      guardianRequestStatusChanged:
+        $ref: '#/components/messages/guardianRequestStatusChanged'
+      guardianAccessChanged:
+        $ref: '#/components/messages/guardianAccessChanged'
+      tenantStateChanged:
+        $ref: '#/components/messages/tenantStateChanged'
+      sessionRevoked:
+        $ref: '#/components/messages/sessionRevoked'
+
+operations:
+  sendQueueEvents:
+    action: send
+    title: Queue events to staff
+    channel:
+      $ref: '#/channels/queueHub'
+    messages:
+      - $ref: '#/channels/queueHub/messages/queueRequestCreated'
+      - $ref: '#/channels/queueHub/messages/queueRequestUpdated'
+      - $ref: '#/channels/queueHub/messages/queueReset'
+      - $ref: '#/channels/queueHub/messages/tenantStateChanged'
+      - $ref: '#/channels/queueHub/messages/sessionRevoked'
+  receiveJoinTenantQueue:
+    action: receive
+    title: JoinTenantQueue hub method
+    description: Joins t:{tenantId}:queue after re-validating membership. Returns JoinTenantQueueResult.
+    channel:
+      $ref: '#/channels/queueHub'
+    messages:
+      - $ref: '#/channels/queueHub/messages/joinTenantQueue'
+  receiveSubscribeClasses:
+    action: receive
+    title: SubscribeClasses hub method
+    description: Optional narrowing to class groups (e.g. a teacher's classes). Empty array = whole tenant.
+    channel:
+      $ref: '#/channels/queueHub'
+    messages:
+      - $ref: '#/channels/queueHub/messages/subscribeClasses'
+  sendDisplayEvents:
+    action: send
+    title: Display events
+    channel:
+      $ref: '#/channels/displayHub'
+    messages:
+      - $ref: '#/channels/displayHub/messages/displayItemUpserted'
+      - $ref: '#/channels/displayHub/messages/displayItemRemoved'
+      - $ref: '#/channels/displayHub/messages/queueReset'
+      - $ref: '#/channels/displayHub/messages/displayRevoked'
+  receiveDisplayHello:
+    action: receive
+    title: Hello hub method (display)
+    description: Display reports lastSeq after (re)connect; server replies with JoinTenantQueueResult semantics.
+    channel:
+      $ref: '#/channels/displayHub'
+    messages:
+      - $ref: '#/channels/displayHub/messages/displayHello'
+  sendGuardianEvents:
+    action: send
+    title: Guardian events
+    channel:
+      $ref: '#/channels/guardianHub'
+    messages:
+      - $ref: '#/channels/guardianHub/messages/guardianRequestStatusChanged'
+      - $ref: '#/channels/guardianHub/messages/guardianAccessChanged'
+      - $ref: '#/channels/guardianHub/messages/tenantStateChanged'
+      - $ref: '#/channels/guardianHub/messages/sessionRevoked'
+
+components:
+  schemas:
+    EventEnvelope:
+      type: object
+      required: [eventId, type, version, occurredAt, data]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        version:
+          type: integer
+          enum: [1]
+        tenantId:
+          type: [string, 'null']
+          format: uuid
+        queueDate:
+          type: [string, 'null']
+          format: date
+          description: Set for queue/display events.
+        seq:
+          type: [integer, 'null']
+          format: int64
+          description: Per (tenantId, queueDate) monotonic sequence. Set for queue/display events.
+        occurredAt:
+          type: string
+          format: date-time
+        data:
+          type: object
+    QueueItemData:
+      type: object
+      required: [item]
+      properties:
+        item:
+          $ref: '../bundled/openapi.v1.yaml#/components/schemas/QueueItem'
+    QueueResetData:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          enum: [day_rollover, resync_required]
+        newQueueDate:
+          type: [string, 'null']
+          format: date
+    DisplayItemData:
+      type: object
+      required: [item]
+      properties:
+        item:
+          $ref: '../bundled/openapi.v1.yaml#/components/schemas/DisplayItem'
+    DisplayItemRemovedData:
+      type: object
+      required: [itemId]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+    GuardianRequestStatusData:
+      type: object
+      required: [request]
+      properties:
+        request:
+          $ref: '../bundled/openapi.v1.yaml#/components/schemas/GuardianPickupRequest'
+    GuardianAccessChangedData:
+      type: object
+      required: [tenantId, guardianId, state]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        guardianId:
+          type: string
+          format: uuid
+        state:
+          $ref: '../bundled/openapi.v1.yaml#/components/schemas/GuardianState'
+        reasonCode:
+          type: [string, 'null']
+    TenantStateChangedData:
+      type: object
+      required: [tenantId, state, operationalMode]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        state:
+          $ref: '../bundled/openapi.v1.yaml#/components/schemas/TenantLifecycleState'
+        operationalMode:
+          $ref: '../bundled/openapi.v1.yaml#/components/schemas/OperationalMode'
+    SessionRevokedData:
+      type: object
+      required: [sessionId, reason]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        reason:
+          $ref: '../bundled/openapi.v1.yaml#/components/schemas/SessionRevokeReason'
+    DisplayRevokedData:
+      type: object
+      required: [displayId]
+      properties:
+        displayId:
+          type: string
+          format: uuid
+    JoinTenantQueueArgs:
+      type: object
+      required: [tenantId]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        queueDate:
+          type: [string, 'null']
+          format: date
+        lastSeq:
+          type: [integer, 'null']
+          format: int64
+    JoinTenantQueueResult:
+      type: object
+      required: [queueDate, latestSeq, catchUp]
+      properties:
+        queueDate:
+          type: string
+          format: date
+        latestSeq:
+          type: integer
+          format: int64
+        catchUp:
+          type: string
+          enum: [none, events, snapshot]
+          description: What the client must do next given its lastSeq.
+    SubscribeClassesArgs:
+      type: object
+      required: [tenantId, classIds]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        classIds:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
+    DisplayHelloArgs:
+      type: object
+      properties:
+        lastSeq:
+          type: [integer, 'null']
+          format: int64
+        appVersion:
+          type: string
+
+  messages:
+    queueRequestCreated:
+      name: queue.request.created
+      title: Pickup request created
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: queue.request.created
+              data:
+                $ref: '#/components/schemas/QueueItemData'
+    queueRequestUpdated:
+      name: queue.request.updated
+      title: Pickup request changed (sent_out, acknowledged, cancelled, exception, resolved, stale flag)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: queue.request.updated
+              data:
+                $ref: '#/components/schemas/QueueItemData'
+    queueReset:
+      name: queue.reset
+      title: Queue day rollover or forced resync — reload snapshot
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: queue.reset
+              data:
+                $ref: '#/components/schemas/QueueResetData'
+    displayItemUpserted:
+      name: display.item.upserted
+      title: Display item added or changed
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: display.item.upserted
+              data:
+                $ref: '#/components/schemas/DisplayItemData'
+    displayItemRemoved:
+      name: display.item.removed
+      title: Display item removed (closed, cancelled or moved to exception)
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: display.item.removed
+              data:
+                $ref: '#/components/schemas/DisplayItemRemovedData'
+    displayRevoked:
+      name: display.revoked
+      title: Display unpaired — clear token and show pairing screen
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: display.revoked
+              data:
+                $ref: '#/components/schemas/DisplayRevokedData'
+    guardianRequestStatusChanged:
+      name: guardian.request.status_changed
+      title: Status of one of the guardian's requests changed
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: guardian.request.status_changed
+              data:
+                $ref: '#/components/schemas/GuardianRequestStatusData'
+    guardianAccessChanged:
+      name: guardian.access.changed
+      title: Guardian blocked, deactivated, expired, revoked or reactivated in a school
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: guardian.access.changed
+              data:
+                $ref: '#/components/schemas/GuardianAccessChangedData'
+    tenantStateChanged:
+      name: tenant.state_changed
+      title: School lifecycle state changed
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: tenant.state_changed
+              data:
+                $ref: '#/components/schemas/TenantStateChangedData'
+    sessionRevoked:
+      name: session.revoked
+      title: This session was revoked — sign out locally
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              type:
+                const: session.revoked
+              data:
+                $ref: '#/components/schemas/SessionRevokedData'
+    joinTenantQueue:
+      name: JoinTenantQueue
+      title: Hub method — join a tenant's queue group
+      payload:
+        $ref: '#/components/schemas/JoinTenantQueueArgs'
+    subscribeClasses:
+      name: SubscribeClasses
+      title: Hub method — narrow to class groups
+      payload:
+        $ref: '#/components/schemas/SubscribeClassesArgs'
+    displayHello:
+      name: Hello
+      title: Hub method — display reports lastSeq after (re)connect
+      payload:
+        $ref: '#/components/schemas/DisplayHelloArgs'

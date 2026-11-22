@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <ItemGroup>
+    <ProjectReference Include="../../Modules/Platform/HomeBell.Modules.Platform.Infrastructure/HomeBell.Modules.Platform.Infrastructure.csproj" />
+    <ProjectReference Include="../../Modules/Identity/HomeBell.Modules.Identity.Infrastructure/HomeBell.Modules.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="../../Modules/Schools/HomeBell.Modules.Schools.Infrastructure/HomeBell.Modules.Schools.Infrastructure.csproj" />
+    <ProjectReference Include="../../Modules/Guardians/HomeBell.Modules.Guardians.Infrastructure/HomeBell.Modules.Guardians.Infrastructure.csproj" />
+    <ProjectReference Include="../../Modules/Dismissal/HomeBell.Modules.Dismissal.Infrastructure/HomeBell.Modules.Dismissal.Infrastructure.csproj" />
+    <ProjectReference Include="../../Modules/Billing/HomeBell.Modules.Billing.Infrastructure/HomeBell.Modules.Billing.Infrastructure.csproj" />
+    <ProjectReference Include="../../Modules/Notifications/HomeBell.Modules.Notifications.Infrastructure/HomeBell.Modules.Notifications.Infrastructure.csproj" />
+    <ProjectReference Include="../../Modules/Audit/HomeBell.Modules.Audit.Infrastructure/HomeBell.Modules.Audit.Infrastructure.csproj" />
+    <ProjectReference Include="../../Modules/Reporting/HomeBell.Modules.Reporting.Infrastructure/HomeBell.Modules.Reporting.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

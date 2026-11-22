@@ -1,0 +1,238 @@
+# Reports, audit logs, notifications.
+
+PickupReportRow:
+  type: object
+  required:
+    [requestId, queueDate, studentName, className, guardianName, guardianKind, state, requestedAt]
+  properties:
+    requestId:
+      $ref: './common.yaml#/Uuid'
+    queueDate:
+      $ref: './common.yaml#/LocalDate'
+    studentName:
+      type: string
+    className:
+      type: string
+    guardianName:
+      type: string
+    guardianKind:
+      $ref: './enums.yaml#/GuardianKind'
+    state:
+      $ref: './enums.yaml#/PickupRequestState'
+    requestedAt:
+      $ref: './common.yaml#/Timestamp'
+    sentOutAt:
+      type: [string, 'null']
+      format: date-time
+    acknowledgedAt:
+      type: [string, 'null']
+      format: date-time
+    minutesToAcknowledge:
+      type: [number, 'null']
+    resolution:
+      oneOf:
+        - $ref: './enums.yaml#/PickupResolution'
+        - type: 'null'
+PickupReportPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items, totals]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/PickupReportRow'
+        totals:
+          type: object
+          required: [requests, acknowledged, cancelled, exceptions, resolved]
+          properties:
+            requests:
+              type: integer
+            acknowledged:
+              type: integer
+            cancelled:
+              type: integer
+            exceptions:
+              type: integer
+            resolved:
+              type: integer
+            medianMinutesToAcknowledge:
+              type: [number, 'null']
+GuardianActivityRow:
+  type: object
+  required: [guardianId, fullName, kind, state, requests, acknowledged, unresolved]
+  properties:
+    guardianId:
+      $ref: './common.yaml#/Uuid'
+    fullName:
+      type: string
+    kind:
+      $ref: './enums.yaml#/GuardianKind'
+    state:
+      $ref: './enums.yaml#/GuardianState'
+    requests:
+      type: integer
+    acknowledged:
+      type: integer
+    unresolved:
+      type: integer
+    lastActiveAt:
+      type: [string, 'null']
+      format: date-time
+GuardianActivityPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/GuardianActivityRow'
+DeviceTransferReportRow:
+  type: object
+  required: [guardianId, guardianName, transfer]
+  properties:
+    guardianId:
+      $ref: './common.yaml#/Uuid'
+    guardianName:
+      type: string
+    transfer:
+      $ref: './identity.yaml#/DeviceTransferRecord'
+DeviceTransferReportPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/DeviceTransferReportRow'
+UsageReport:
+  type: object
+  required: [from, to, days]
+  properties:
+    from:
+      $ref: './common.yaml#/LocalDate'
+    to:
+      $ref: './common.yaml#/LocalDate'
+    days:
+      type: array
+      items:
+        type: object
+        required: [date, requests, acknowledged, exceptions, activeGuardians, otpSent]
+        properties:
+          date:
+            $ref: './common.yaml#/LocalDate'
+          requests:
+            type: integer
+          acknowledged:
+            type: integer
+          exceptions:
+            type: integer
+          activeGuardians:
+            type: integer
+          otpSent:
+            type: integer
+
+AuditLogEntry:
+  type: object
+  required: [id, occurredAt, action, outcome, actor]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    occurredAt:
+      $ref: './common.yaml#/Timestamp'
+    tenantId:
+      type: [string, 'null']
+      format: uuid
+    tenantName:
+      type: [string, 'null']
+    action:
+      $ref: './enums.yaml#/AuditAction'
+    outcome:
+      $ref: './enums.yaml#/AuditOutcome'
+    actor:
+      $ref: './common.yaml#/ActorRef'
+    onBehalfOf:
+      oneOf:
+        - $ref: './common.yaml#/ActorRef'
+        - type: 'null'
+    targetType:
+      type: [string, 'null']
+    targetId:
+      type: [string, 'null']
+    targetLabel:
+      type: [string, 'null']
+    reasonCode:
+      type: [string, 'null']
+    requestId:
+      type: [string, 'null']
+    deviceId:
+      type: [string, 'null']
+      format: uuid
+    data:
+      type: object
+      description: Before/after diff and context. Never contains secrets, OTP codes or full phone numbers.
+      additionalProperties: true
+AuditLogPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/AuditLogEntry'
+
+Notification:
+  type: object
+  required: [id, type, title, body, createdAt]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    type:
+      $ref: './enums.yaml#/NotificationType'
+    tenantId:
+      type: [string, 'null']
+      format: uuid
+    title:
+      type: string
+    body:
+      type: string
+    data:
+      type: object
+      description: 'Deep-link context, e.g. { "pickupRequestId": "…" }.'
+      additionalProperties:
+        type: string
+    createdAt:
+      $ref: './common.yaml#/Timestamp'
+    readAt:
+      type: [string, 'null']
+      format: date-time
+NotificationPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items, unreadCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/Notification'
+        unreadCount:
+          type: integer
+MarkNotificationsReadRequest:
+  type: object
+  properties:
+    ids:
+      type: array
+      maxItems: 100
+      items:
+        $ref: './common.yaml#/Uuid'
+    all:
+      type: boolean
+      description: Mark all as read (ids ignored).

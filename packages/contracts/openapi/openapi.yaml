@@ -1,0 +1,4053 @@
+openapi: 3.1.0
+info:
+  title: HomeBell API
+  version: 1.0.0
+  summary: Multi-tenant school pickup and dismissal platform.
+  description: |
+    HomeBell API v1 — the single source of truth for frontend and backend (ADR-0004).
+
+    **Planes**
+    - `/v1/platform/**` — control plane (platform owner / super admin portal).
+    - `/v1/t/{tenantId}/**` — tenant plane for school staff.
+    - `/v1/me/**` — guardian self-service (aggregated across the guardian's schools).
+    - `/v1/display/**` — public display screens (display token).
+    - `/v1/auth/**`, `/v1/invitations/**` — authentication and invitation redemption.
+
+    **Conventions**
+    - JSON, camelCase, UUID ids, RFC 3339 UTC timestamps; tenant-local dates where noted.
+    - Errors: `application/problem+json` (RFC 9457) with a machine-readable `code` (`ErrorCode`).
+    - Pagination: `cursor` + `limit` → `{ items, nextCursor, limit }`.
+    - `Idempotency-Key` header on retry-prone writes (documented per operation).
+    - `If-Match` (ETag) optional on PATCH/PUT of mutable admin resources.
+    - Guardian app requests always send `X-Device-Id`.
+    - Foreign or unknown tenant resources return 404, never 403.
+    - Clients must tolerate unknown enum values.
+
+    HomeBell supports safer dismissal and clearer accountability. The MVP does **not** perform
+    identity-verified physical handoff and does **not** process refunds.
+  contact:
+    name: neuXplus — HomeBell engineering
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: http://localhost:5080
+    description: Local development API
+  - url: '{baseUrl}'
+    description: Deployed environment
+    variables:
+      baseUrl:
+        default: https://api.homebell.invalid
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: Staff/platform sign-in, guardian OTP sign-in, sessions, device transfer.
+  - name: Invitations
+    description: Additional guardian invitation redemption (unauthenticated).
+  - name: Guardian
+    description: Guardian self-service (mobile app).
+  - name: GuardianLicensing
+    description: Additional guardian seats, purchases and invitations (primary guardian).
+  - name: SchoolOverview
+    description: School dashboard overview, entitlements, subscription view, settings.
+  - name: Classes
+    description: Classes and sections.
+  - name: Students
+    description: Student management and imports.
+  - name: Guardians
+    description: School-side guardian management, blocking, device visibility.
+  - name: Staff
+    description: School staff and roles.
+  - name: Queue
+    description: Live dismissal queue and pickup request operations (staff).
+  - name: Displays
+    description: Display screen pairing (school) and display feed (display token).
+  - name: Reports
+    description: Reports and tenant audit log.
+  - name: PlatformTenants
+    description: Tenant lifecycle, subscriptions, entitlements, usage, notes.
+  - name: PlatformCatalog
+    description: Plans, plan versions, feature flags.
+  - name: PlatformOps
+    description: Platform users, audit, support sessions, cross-tenant device oversight.
+  - name: Webhooks
+    description: Provider callbacks (internal).
+
+paths:
+  # ───────────────────────────── Auth ─────────────────────────────
+  /v1/auth/staff/login:
+    post:
+      tags: [Auth]
+      operationId: staffLogin
+      summary: Staff or platform user sign-in (email + password)
+      security: []
+      x-rate-limit: auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/StaffLoginRequest'
+      responses:
+        '200':
+          description: Authenticated, or MFA step required.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/StaffLoginResult'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '423':
+          description: ACCOUNT_LOCKED or ACCOUNT_DEACTIVATED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+  /v1/auth/staff/mfa/verify:
+    post:
+      tags: [Auth]
+      operationId: staffMfaVerify
+      summary: Complete sign-in with a TOTP or recovery code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/MfaVerifyRequest'
+      responses:
+        '200':
+          description: Authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/StaffLoginAuthenticated'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+  /v1/auth/staff/mfa/enroll:
+    post:
+      tags: [Auth]
+      operationId: staffMfaEnrollStart
+      summary: Start TOTP enrollment (required for platform users)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/MfaEnrollStartRequest'
+      responses:
+        '200':
+          description: TOTP secret issued.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/MfaEnrollStart'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/auth/staff/mfa/enroll/confirm:
+    post:
+      tags: [Auth]
+      operationId: staffMfaEnrollConfirm
+      summary: Confirm TOTP enrollment and sign in
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/MfaEnrollConfirmRequest'
+      responses:
+        '200':
+          description: Enrolled and authenticated. Recovery codes are shown once.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/MfaEnrollConfirmResult'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/auth/staff/password/forgot:
+    post:
+      tags: [Auth]
+      operationId: staffPasswordForgot
+      summary: Request a password reset email (always 204)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/PasswordForgotRequest'
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+  /v1/auth/staff/password/reset:
+    post:
+      tags: [Auth]
+      operationId: staffPasswordReset
+      summary: Reset password with an emailed token (revokes all sessions)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/PasswordResetRequest'
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '410':
+          $ref: './components/responses.yaml#/Gone'
+  /v1/auth/staff/invitations/preview:
+    post:
+      tags: [Auth]
+      operationId: staffInvitationPreview
+      summary: Preview a staff invitation (token in body, never in URL)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Invitation details.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/StaffInvitationPreview'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '410':
+          $ref: './components/responses.yaml#/Gone'
+  /v1/auth/staff/invitations/accept:
+    post:
+      tags: [Auth]
+      operationId: staffInvitationAccept
+      summary: Accept a staff/platform invitation
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/StaffInvitationAcceptRequest'
+      responses:
+        '200':
+          description: Membership created; sign-in result.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/StaffLoginResult'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '410':
+          $ref: './components/responses.yaml#/Gone'
+  /v1/auth/otp/send:
+    post:
+      tags: [Auth]
+      operationId: otpSend
+      summary: Send an OTP to a guardian phone (anti-enumeration — same response for unknown phones)
+      security: []
+      x-rate-limit: otp-send
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/OtpSendRequest'
+      responses:
+        '202':
+          description: Challenge created (SMS dispatched asynchronously).
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/OtpChallenge'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '422':
+          description: PHONE_NOT_SUPPORTED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+        '503':
+          description: OTP_TEMPORARILY_UNAVAILABLE (provider down or budget breaker open).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/auth/otp/resend:
+    post:
+      tags: [Auth]
+      operationId: otpResend
+      summary: Resend the code for an existing challenge
+      security: []
+      x-rate-limit: otp-send
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/OtpResendRequest'
+      responses:
+        '202':
+          description: Code re-sent; challenge updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/OtpChallenge'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+        '503':
+          $ref: './components/responses.yaml#/ServerError'
+  /v1/auth/otp/verify:
+    post:
+      tags: [Auth]
+      operationId: otpVerify
+      summary: Verify a guardian OTP — signs in, reports a device conflict, or reports no account
+      security: []
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/OtpVerifyRequest'
+      responses:
+        '200':
+          description: Verification outcome.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/OtpVerifyResult'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '404':
+          description: OTP_CHALLENGE_NOT_FOUND.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '410':
+          description: OTP_EXPIRED or OTP_ATTEMPTS_EXCEEDED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '422':
+          description: OTP_INVALID (`meta.remainingAttempts`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '429':
+          description: OTP_LOCKED (`meta.lockedUntil`) or RATE_LIMITED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/auth/device-transfer:
+    post:
+      tags: [Auth]
+      operationId: deviceTransfer
+      summary: Transfer the account to this device (revokes the old device's sessions)
+      security: []
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/DeviceConflictTokenRequest'
+      responses:
+        '200':
+          description: Transferred and signed in on this device.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/DeviceTransferResult'
+        '401':
+          description: DEVICE_CONFLICT_TOKEN_INVALID.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '409':
+          description: DEVICE_TRANSFER_COOLDOWN (`meta.cooldownEndsAt`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/auth/device-conflict/limited-session:
+    post:
+      tags: [Auth]
+      operationId: deviceConflictLimitedSession
+      summary: Get a limited session on the new device that can only buy a seat and invite another person
+      security: []
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/DeviceConflictTokenRequest'
+      responses:
+        '200':
+          description: Limited session (scope guardian.license_purchase, 30 min).
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/TokenPair'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          description: FEATURE_NOT_ENTITLED or FORBIDDEN (not a primary guardian).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshTokens
+      summary: Rotate the refresh token and get a new access token
+      security: []
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceIdOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/RefreshRequest'
+      responses:
+        '200':
+          description: New token pair.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/TokenPair'
+        '401':
+          description: REFRESH_TOKEN_INVALID, REFRESH_TOKEN_REUSED, SESSION_REVOKED, DEVICE_REVOKED or DEVICE_MISMATCH.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Revoke the current session
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/auth/me:
+    get:
+      tags: [Auth]
+      operationId: getMe
+      summary: Current identity, roles, memberships and guardian profiles
+      responses:
+        '200':
+          description: Current user.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/Me'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/auth/realtime-tickets:
+    post:
+      tags: [Auth]
+      operationId: createRealtimeTicket
+      summary: Mint a single-use 60-second ticket for connecting to a SignalR hub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/RealtimeTicketRequest'
+      responses:
+        '200':
+          description: Ticket.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/RealtimeTicket'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+
+  # ───────────────────────────── Invitations (public) ─────────────────────────────
+  /v1/invitations/lookup:
+    post:
+      tags: [Invitations]
+      operationId: lookupInvitation
+      summary: Look up an invitation by code (masked preview only)
+      security: []
+      x-rate-limit: invitation-lookup
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/InvitationLookupRequest'
+      responses:
+        '200':
+          description: Invitation preview.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/InvitationPreview'
+        '404':
+          description: INVITATION_NOT_FOUND.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '410':
+          description: INVITATION_EXPIRED, INVITATION_ALREADY_USED or INVITATION_REVOKED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+  /v1/invitations/{invitationId}/otp:
+    post:
+      tags: [Invitations]
+      operationId: sendInvitationOtp
+      summary: Confirm the invited phone number and send an OTP to it
+      security: []
+      x-rate-limit: otp-send
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/InvitationOtpRequest'
+      responses:
+        '202':
+          description: OTP sent to the invited number only.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/OtpChallenge'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '410':
+          $ref: './components/responses.yaml#/Gone'
+        '422':
+          description: INVITATION_PHONE_MISMATCH.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+  /v1/invitations/{invitationId}/redeem:
+    post:
+      tags: [Invitations]
+      operationId: redeemInvitation
+      summary: Verify the OTP and redeem the invitation (creates or links a separate guardian account)
+      security: []
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/InvitationRedeemRequest'
+      responses:
+        '200':
+          description: Redeemed. Outcome is `authenticated`, or `device_conflict` if this account is active on another device.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/OtpVerifyResult'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '410':
+          $ref: './components/responses.yaml#/Gone'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+
+  # ───────────────────────────── Guardian self-service ─────────────────────────────
+  /v1/me/profile:
+    get:
+      tags: [Guardian]
+      operationId: getMyProfile
+      summary: Guardian profile
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      responses:
+        '200':
+          description: Profile.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/Me'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+    patch:
+      tags: [Guardian]
+      operationId: updateMyProfile
+      summary: Update display name or locale
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/GuardianProfileUpdate'
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/Me'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/me/terms-acceptance:
+    post:
+      tags: [Guardian]
+      operationId: acceptTerms
+      summary: Record acceptance of the current terms and privacy notice
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/TermsAcceptanceRequest'
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/me/children:
+    get:
+      tags: [Guardian]
+      operationId: listMyChildren
+      summary: Linked children across schools, with pickup eligibility and active request
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      responses:
+        '200':
+          description: Children and per-school context.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/ChildList'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/me/pickup-requests:
+    get:
+      tags: [Guardian]
+      operationId: listMyPickupRequests
+      summary: Pickup request history
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: studentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: './components/parameters.yaml#/From'
+        - $ref: './components/parameters.yaml#/To'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: History page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/GuardianPickupRequestPage'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+    post:
+      tags: [Guardian]
+      operationId: createPickupRequest
+      summary: Request pickup for one or more linked children
+      description: |
+        Creates one request per student. Ineligible students are reported in `rejected` with codes such as
+        GUARDIAN_BLOCKED, GUARDIAN_ACCESS_EXPIRED, STUDENT_NOT_ELIGIBLE, OUTSIDE_DISMISSAL_WINDOW,
+        LOCATION_REQUIRED, OUTSIDE_PICKUP_ZONE, DUPLICATE_ACTIVE_REQUEST. If *every* student is rejected for
+        a guardian/tenant-level reason, the whole call fails with that error instead.
+      x-rate-limit: guardian-write
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/dismissal.yaml#/CreatePickupRequest'
+      responses:
+        '201':
+          description: Requests created (possibly with some rejected students).
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/CreatePickupResult'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          description: GUARDIAN_BLOCKED, GUARDIAN_DEACTIVATED, GUARDIAN_ACCESS_EXPIRED, TENANT_NOT_OPERATIONAL, FEATURE_NOT_ENTITLED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '409':
+          description: IDEMPOTENCY_IN_PROGRESS.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '422':
+          description: All students rejected (see `meta.rejected`), or IDEMPOTENCY_KEY_REUSED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+  /v1/me/pickup-requests/{requestId}:
+    get:
+      tags: [Guardian]
+      operationId: getMyPickupRequest
+      summary: One of my pickup requests
+      parameters:
+        - $ref: './components/parameters.yaml#/PickupRequestIdPath'
+        - $ref: './components/parameters.yaml#/DeviceId'
+      responses:
+        '200':
+          description: Request.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/GuardianPickupRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/me/pickup-requests/{requestId}/acknowledge:
+    post:
+      tags: [Guardian]
+      operationId: acknowledgePickup
+      summary: Confirm the child has been picked up
+      parameters:
+        - $ref: './components/parameters.yaml#/PickupRequestIdPath'
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      responses:
+        '200':
+          description: Acknowledged (or already acknowledged — idempotent).
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/GuardianPickupRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          description: INVALID_PICKUP_TRANSITION / PICKUP_REQUEST_CLOSED (e.g. cancelled by staff).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/me/pickup-requests/{requestId}/cancel:
+    post:
+      tags: [Guardian]
+      operationId: cancelMyPickupRequest
+      summary: Cancel my request (only before it is sent out)
+      parameters:
+        - $ref: './components/parameters.yaml#/PickupRequestIdPath'
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: './components/dismissal.yaml#/GuardianCancelRequest'
+      responses:
+        '200':
+          description: Cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/GuardianPickupRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/me/device:
+    get:
+      tags: [Guardian]
+      operationId: getMyDeviceStatus
+      summary: This device's status, transfer history and cooldown
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      responses:
+        '200':
+          description: Device status.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/DeviceStatus'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/me/push-tokens:
+    post:
+      tags: [Guardian]
+      operationId: registerPushToken
+      summary: Register or refresh the push token for this device
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/PushTokenRegistration'
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/me/push-tokens/current:
+    delete:
+      tags: [Guardian]
+      operationId: removePushToken
+      summary: Remove the push token for this device
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/me/notifications:
+    get:
+      tags: [Guardian]
+      operationId: listMyNotifications
+      summary: In-app notifications
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Notifications page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/reports.yaml#/NotificationPage'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/me/notifications/read:
+    post:
+      tags: [Guardian]
+      operationId: markMyNotificationsRead
+      summary: Mark notifications as read
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/reports.yaml#/MarkNotificationsReadRequest'
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+
+  # ───────────────────────────── Guardian licensing ─────────────────────────────
+  /v1/me/license-seats:
+    get:
+      tags: [GuardianLicensing]
+      operationId: listMyLicenseSeats
+      summary: My additional-guardian seats (primary guardian)
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Seats.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/LicenseSeatList'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+  /v1/me/license-purchases:
+    post:
+      tags: [GuardianLicensing]
+      operationId: createPurchaseIntent
+      summary: Start an additional-guardian seat purchase (returns store parameters)
+      description: Allowed for full sessions and for the limited `guardian.license_purchase` scope.
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/CreatePurchaseIntentRequest'
+      responses:
+        '201':
+          description: Purchase intent.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/PurchaseIntent'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          description: FEATURE_NOT_ENTITLED, TENANT_NOT_OPERATIONAL, FORBIDDEN (not primary).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '422':
+          description: ADDITIONAL_GUARDIAN_LIMIT_REACHED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/me/license-purchases/{intentId}/complete:
+    post:
+      tags: [GuardianLicensing]
+      operationId: completePurchase
+      summary: Submit the store purchase token for server-side verification
+      parameters:
+        - name: intentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/CompletePurchaseRequest'
+      responses:
+        '200':
+          description: Verified (seat granted) or pending (state = pending; retry later).
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/PurchaseResult'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          description: PURCHASE_ALREADY_PROCESSED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '410':
+          description: PURCHASE_INTENT_EXPIRED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '422':
+          description: PURCHASE_VERIFICATION_FAILED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/me/guardians:
+    get:
+      tags: [GuardianLicensing]
+      operationId: listMyAdditionalGuardians
+      summary: Additional guardians I manage (with invitation status)
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Additional guardians.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/AdditionalGuardianList'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+  /v1/me/guardian-invitations:
+    post:
+      tags: [GuardianLicensing]
+      operationId: createGuardianInvitation
+      summary: Invite an additional guardian using an available seat
+      parameters:
+        - $ref: './components/parameters.yaml#/DeviceId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/CreateGuardianInvitationRequest'
+      responses:
+        '201':
+          description: Invitation created. The code is returned once.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/GuardianInvitationCreated'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '422':
+          description: NO_AVAILABLE_SEAT, SEAT_REASSIGNMENT_LIMIT, INVALID_VALIDITY_WINDOW, GUARDIAN_NOT_LINKED, ADDITIONAL_GUARDIAN_LIMIT_REACHED, GUARDIAN_PHONE_IN_USE.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/me/guardians/{guardianId}:
+    patch:
+      tags: [GuardianLicensing]
+      operationId: updateMyAdditionalGuardian
+      summary: Change an additional guardian's validity or linked children
+      parameters:
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+        - $ref: './components/parameters.yaml#/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/UpdateAdditionalGuardianRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/AdditionalGuardian'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
+  /v1/me/guardians/{guardianId}/revoke:
+    post:
+      tags: [GuardianLicensing]
+      operationId: revokeMyAdditionalGuardian
+      summary: Revoke an additional guardian (or pending invitation); the seat returns if reassignments remain
+      parameters:
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+        - $ref: './components/parameters.yaml#/DeviceId'
+      responses:
+        '200':
+          description: Revoked.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/AdditionalGuardian'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/me/guardians/{guardianId}/invitation/resend:
+    post:
+      tags: [GuardianLicensing]
+      operationId: resendGuardianInvitation
+      summary: Regenerate the invitation code (old code stops working) and reset expiry
+      parameters:
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+        - $ref: './components/parameters.yaml#/DeviceId'
+      responses:
+        '200':
+          description: New code (shown once).
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/GuardianInvitationCreated'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          description: Invitation already redeemed or revoked.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+
+  # ───────────────────────────── School: overview & settings ─────────────────────────────
+  /v1/t/{tenantId}/overview:
+    get:
+      tags: [SchoolOverview]
+      operationId: getSchoolOverview
+      summary: Dashboard overview for a queue date
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/QueueDate'
+      responses:
+        '200':
+          description: Overview.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/DashboardOverview'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/entitlements:
+    get:
+      tags: [SchoolOverview]
+      operationId: getSchoolEntitlements
+      summary: Effective features and limits (for UI feature gating)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      responses:
+        '200':
+          description: Effective entitlements.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/EffectiveEntitlements'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/subscription:
+    get:
+      tags: [SchoolOverview]
+      operationId: getSchoolSubscription
+      summary: Read-only subscription and lifecycle status
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      responses:
+        '200':
+          description: Subscription view.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/TenantSubscriptionView'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/settings:
+    get:
+      tags: [SchoolOverview]
+      operationId: getSchoolSettings
+      summary: Tenant settings
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      responses:
+        '200':
+          description: Settings (ETag header set).
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/TenantSettings'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    put:
+      tags: [SchoolOverview]
+      operationId: updateSchoolSettings
+      summary: Replace tenant settings
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/TenantSettings'
+      responses:
+        '200':
+          description: Updated settings.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/TenantSettings'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '412':
+          $ref: './components/responses.yaml#/PreconditionFailed'
+
+  # ───────────────────────────── School: classes ─────────────────────────────
+  /v1/t/{tenantId}/classes:
+    get:
+      tags: [Classes]
+      operationId: listClasses
+      summary: Classes with sections
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      responses:
+        '200':
+          description: Classes.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/SchoolClassList'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    post:
+      tags: [Classes]
+      operationId: createClass
+      summary: Create a class
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/CreateClassRequest'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/SchoolClass'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/t/{tenantId}/classes/{classId}:
+    parameters:
+      - $ref: './components/parameters.yaml#/TenantId'
+      - name: classId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [Classes]
+      operationId: updateClass
+      summary: Update a class
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/UpdateClassRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/SchoolClass'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    delete:
+      tags: [Classes]
+      operationId: deleteClass
+      summary: Delete an empty class
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          description: CLASS_NOT_EMPTY.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/classes/{classId}/sections:
+    post:
+      tags: [Classes]
+      operationId: createSection
+      summary: Add a section to a class
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/CreateSectionRequest'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Section'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/sections/{sectionId}:
+    parameters:
+      - $ref: './components/parameters.yaml#/TenantId'
+      - name: sectionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [Classes]
+      operationId: updateSection
+      summary: Rename a section
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/UpdateSectionRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Section'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    delete:
+      tags: [Classes]
+      operationId: deleteSection
+      summary: Delete an empty section
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+
+  # ───────────────────────────── School: students & imports ─────────────────────────────
+  /v1/t/{tenantId}/students:
+    get:
+      tags: [Students]
+      operationId: listStudents
+      summary: Search and list students
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/Search'
+        - name: classId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: sectionId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/StudentStatus'
+        - name: eligibility
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/DismissalEligibility'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Students page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/StudentPage'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    post:
+      tags: [Students]
+      operationId: createStudent
+      summary: Add a student with a primary guardian
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/CreateStudentRequest'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Student'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+        '422':
+          description: LIMIT_EXCEEDED (students.max).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/students/{studentId}:
+    parameters:
+      - $ref: './components/parameters.yaml#/TenantId'
+      - $ref: './components/parameters.yaml#/StudentIdPath'
+    get:
+      tags: [Students]
+      operationId: getStudent
+      summary: Student profile
+      responses:
+        '200':
+          description: Student (ETag header set).
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Student'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    patch:
+      tags: [Students]
+      operationId: updateStudent
+      summary: Update a student
+      parameters:
+        - $ref: './components/parameters.yaml#/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/UpdateStudentRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Student'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '412':
+          $ref: './components/responses.yaml#/PreconditionFailed'
+  /v1/t/{tenantId}/students/{studentId}/deactivate:
+    post:
+      tags: [Students]
+      operationId: deactivateStudent
+      summary: Deactivate a student (blocks future pickup requests; history retained)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/StudentIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/NoteRequest'
+      responses:
+        '200':
+          description: Deactivated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Student'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/students/{studentId}/reactivate:
+    post:
+      tags: [Students]
+      operationId: reactivateStudent
+      summary: Reactivate a student
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/StudentIdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/NoteRequest'
+      responses:
+        '200':
+          description: Reactivated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Student'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
+  /v1/t/{tenantId}/students/{studentId}/guardians:
+    get:
+      tags: [Students]
+      operationId: listStudentGuardians
+      summary: Guardians linked to a student
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/StudentIdPath'
+      responses:
+        '200':
+          description: Links.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: './components/school.yaml#/GuardianLinkSummary'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/imports:
+    post:
+      tags: [Students]
+      operationId: uploadImport
+      summary: Upload a CSV for validation (nothing is written until commit)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: './components/school.yaml#/ImportUpload'
+      responses:
+        '202':
+          description: Validation started; poll the job.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/ImportJob'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '413':
+          description: PAYLOAD_TOO_LARGE.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '415':
+          description: UNSUPPORTED_MEDIA_TYPE / IMPORT_INVALID_FILE.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/imports/template:
+    get:
+      tags: [Students]
+      operationId: getImportTemplate
+      summary: Download the CSV template
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      responses:
+        '200':
+          description: CSV template.
+          content:
+            text/csv:
+              schema:
+                type: string
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/imports/{importId}:
+    get:
+      tags: [Students]
+      operationId: getImport
+      summary: Import job status and summary
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Import job.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/ImportJob'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/imports/{importId}/rows:
+    get:
+      tags: [Students]
+      operationId: listImportRows
+      summary: Validated rows (filter by status to show errors)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/ImportRowStatus'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Rows page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/ImportRowPage'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/imports/{importId}/commit:
+    post:
+      tags: [Students]
+      operationId: commitImport
+      summary: Commit a validated import
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                skipErrorRows:
+                  type: boolean
+                  default: false
+                  description: Commit valid rows and skip error rows (otherwise IMPORT_HAS_ERRORS).
+      responses:
+        '202':
+          description: Commit started.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/ImportJob'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          description: IMPORT_NOT_VALIDATED or IMPORT_ALREADY_COMMITTED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '422':
+          description: IMPORT_HAS_ERRORS or LIMIT_EXCEEDED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+
+  # ───────────────────────────── School: guardians ─────────────────────────────
+  /v1/t/{tenantId}/guardians:
+    get:
+      tags: [Guardians]
+      operationId: listGuardians
+      summary: Search and list guardians
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/Search'
+        - name: state
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/GuardianState'
+        - name: kind
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/GuardianKind'
+        - name: studentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: suspiciousOnly
+          in: query
+          schema:
+            type: boolean
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Guardians page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/GuardianPage'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    post:
+      tags: [Guardians]
+      operationId: createGuardian
+      summary: Add a primary guardian manually
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/CreateGuardianRequest'
+      responses:
+        '201':
+          description: Created (pending activation).
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/Guardian'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '409':
+          description: PRIMARY_GUARDIAN_EXISTS or GUARDIAN_PHONE_IN_USE.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/guardians/{guardianId}:
+    parameters:
+      - $ref: './components/parameters.yaml#/TenantId'
+      - $ref: './components/parameters.yaml#/GuardianIdPath'
+    get:
+      tags: [Guardians]
+      operationId: getGuardian
+      summary: Guardian detail
+      responses:
+        '200':
+          description: Guardian.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/Guardian'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    patch:
+      tags: [Guardians]
+      operationId: updateGuardian
+      summary: Update guardian name or phone (phone change audited, requires OTP by guardian)
+      parameters:
+        - $ref: './components/parameters.yaml#/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/UpdateGuardianRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/Guardian'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+        '412':
+          $ref: './components/responses.yaml#/PreconditionFailed'
+  /v1/t/{tenantId}/guardians/{guardianId}/block:
+    post:
+      tags: [Guardians]
+      operationId: blockGuardian
+      summary: Block a guardian (prevents future pickup requests; history kept)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/GuardianStateChangeRequest'
+      responses:
+        '200':
+          description: Blocked.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/Guardian'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/t/{tenantId}/guardians/{guardianId}/unblock:
+    post:
+      tags: [Guardians]
+      operationId: unblockGuardian
+      summary: Unblock a guardian
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/GuardianStateChangeRequest'
+      responses:
+        '200':
+          description: Unblocked.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/Guardian'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/t/{tenantId}/guardians/{guardianId}/deactivate:
+    post:
+      tags: [Guardians]
+      operationId: deactivateGuardian
+      summary: Deactivate a guardian (revokes sessions for this school's access)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/GuardianStateChangeRequest'
+      responses:
+        '200':
+          description: Deactivated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/Guardian'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/t/{tenantId}/guardians/{guardianId}/reactivate:
+    post:
+      tags: [Guardians]
+      operationId: reactivateGuardian
+      summary: Reactivate a deactivated guardian
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/GuardianStateChangeRequest'
+      responses:
+        '200':
+          description: Reactivated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/Guardian'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/t/{tenantId}/guardians/{guardianId}/links:
+    post:
+      tags: [Guardians]
+      operationId: addGuardianLink
+      summary: Link a guardian to a student
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/GuardianLinkInput'
+      responses:
+        '200':
+          description: Linked.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/Guardian'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/t/{tenantId}/guardians/{guardianId}/links/{studentId}:
+    delete:
+      tags: [Guardians]
+      operationId: removeGuardianLink
+      summary: Unlink a guardian from a student (history kept)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+        - $ref: './components/parameters.yaml#/StudentIdPath'
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '422':
+          description: PRIMARY_GUARDIAN_REQUIRED (cannot remove the only primary link).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/guardians/{guardianId}/devices:
+    get:
+      tags: [Guardians]
+      operationId: getGuardianDevices
+      summary: Device, transfer and cooldown-override history for a guardian
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+      responses:
+        '200':
+          description: Device info.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/GuardianDeviceInfo'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/guardians/{guardianId}/cooldown-overrides:
+    post:
+      tags: [Guardians]
+      operationId: createSchoolCooldownOverride
+      summary: Lift the 30-day transfer cooldown once (lost device) — max 2 per guardian per term
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/CooldownOverrideRequest'
+      responses:
+        '201':
+          description: Override created (valid 24 h, single use).
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/CooldownOverride'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '422':
+          description: COOLDOWN_OVERRIDE_LIMIT_REACHED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/guardians/{guardianId}/send-welcome:
+    post:
+      tags: [Guardians]
+      operationId: sendGuardianWelcome
+      summary: Send a welcome SMS with app download instructions (counts against SMS budget)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/GuardianIdPath'
+      responses:
+        '202':
+          description: Queued.
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+  /v1/t/{tenantId}/license-seats/grants:
+    post:
+      tags: [Guardians]
+      operationId: grantLicenseSeats
+      summary: Grant additional-guardian seats to a primary guardian (school-paid / charity)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/guardians.yaml#/GrantSeatsRequest'
+      responses:
+        '201':
+          description: Seats granted.
+          content:
+            application/json:
+              schema:
+                $ref: './components/guardians.yaml#/LicenseSeatList'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
+
+  # ───────────────────────────── School: staff ─────────────────────────────
+  /v1/t/{tenantId}/staff:
+    get:
+      tags: [Staff]
+      operationId: listStaff
+      summary: Staff members and pending invitations
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      responses:
+        '200':
+          description: Staff.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/StaffList'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/staff-invitations:
+    post:
+      tags: [Staff]
+      operationId: inviteStaff
+      summary: Invite a staff member by email
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/CreateStaffInvitationRequest'
+      responses:
+        '201':
+          description: Invitation sent.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/StaffInvitation'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+        '422':
+          description: LIMIT_EXCEEDED (staff.max).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/staff-invitations/{invitationId}:
+    delete:
+      tags: [Staff]
+      operationId: revokeStaffInvitation
+      summary: Revoke a pending staff invitation
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/staff/{membershipId}:
+    patch:
+      tags: [Staff]
+      operationId: updateStaffMember
+      summary: Change a staff member's role
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/UpdateStaffMemberRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/StaffMember'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          description: Cannot demote the last school admin.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/staff/{membershipId}/deactivate:
+    post:
+      tags: [Staff]
+      operationId: deactivateStaffMember
+      summary: Deactivate a staff member (revokes their sessions for this tenant)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Deactivated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/StaffMember'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/t/{tenantId}/staff/{membershipId}/reactivate:
+    post:
+      tags: [Staff]
+      operationId: reactivateStaffMember
+      summary: Reactivate a staff member
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reactivated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/StaffMember'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
+
+  # ───────────────────────────── School: live queue ─────────────────────────────
+  /v1/t/{tenantId}/queue:
+    get:
+      tags: [Queue]
+      operationId: getQueueSnapshot
+      summary: Live queue snapshot (use `seq` for realtime catch-up)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/QueueDate'
+        - name: state
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: './components/enums.yaml#/PickupRequestState'
+        - name: classId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: './components/parameters.yaml#/Search'
+      responses:
+        '200':
+          description: Snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/QueueSnapshot'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/queue/events:
+    get:
+      tags: [Queue]
+      operationId: getQueueEvents
+      summary: Missed queue events after a sequence number (reconnect catch-up)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/QueueDate'
+        - $ref: './components/parameters.yaml#/AfterSeq'
+      responses:
+        '200':
+          description: Ordered events (max 500).
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/QueueEventPage'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '410':
+          description: QUEUE_CATCHUP_GAP_TOO_LARGE — reload the snapshot.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/pickup-requests/{requestId}:
+    get:
+      tags: [Queue]
+      operationId: getPickupRequest
+      summary: Pickup request with full timeline
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/PickupRequestIdPath'
+      responses:
+        '200':
+          description: Request detail.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/PickupRequestDetail'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/pickup-requests/{requestId}/sent-out:
+    post:
+      tags: [Queue]
+      operationId: markSentOut
+      summary: Mark a request as sent out (one click; no scan)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/PickupRequestIdPath'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      responses:
+        '200':
+          description: Sent out (or already sent out — idempotent).
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/QueueItem'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          description: INVALID_PICKUP_TRANSITION, PICKUP_REQUEST_CLOSED or SENT_OUT_STEP_DISABLED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/pickup-requests/sent-out:
+    post:
+      tags: [Queue]
+      operationId: markSentOutBulk
+      summary: Mark several requests as sent out
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/dismissal.yaml#/SentOutBulkRequest'
+      responses:
+        '200':
+          description: Per-request results.
+          content:
+            application/json:
+              schema:
+                $ref: './components/common.yaml#/BulkActionResult'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/pickup-requests/{requestId}/cancel:
+    post:
+      tags: [Queue]
+      operationId: staffCancelPickupRequest
+      summary: Cancel a request (staff; reason required)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/PickupRequestIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/dismissal.yaml#/StaffCancelRequest'
+      responses:
+        '200':
+          description: Cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/QueueItem'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/t/{tenantId}/pickup-requests/{requestId}/resolve:
+    post:
+      tags: [Queue]
+      operationId: resolvePickupException
+      summary: Resolve an exception (manual follow-up)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/PickupRequestIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/dismissal.yaml#/ResolveExceptionRequest'
+      responses:
+        '200':
+          description: Resolved.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/QueueItem'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+
+  # ───────────────────────────── School: displays ─────────────────────────────
+  /v1/t/{tenantId}/displays:
+    get:
+      tags: [Displays]
+      operationId: listDisplays
+      summary: Paired display screens
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      responses:
+        '200':
+          description: Displays.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/DisplayList'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/displays/pair:
+    post:
+      tags: [Displays]
+      operationId: pairDisplay
+      summary: Pair a display using the code shown on screen
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/PairDisplayRequest'
+      responses:
+        '201':
+          description: Paired.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Display'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          description: PAIRING_CODE_INVALID.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '410':
+          description: PAIRING_CODE_EXPIRED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '422':
+          description: DISPLAY_LIMIT_REACHED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/t/{tenantId}/displays/{displayId}:
+    patch:
+      tags: [Displays]
+      operationId: updateDisplay
+      summary: Rename a display or change its zone
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: displayId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/school.yaml#/UpdateDisplayRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Display'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/displays/{displayId}/revoke:
+    post:
+      tags: [Displays]
+      operationId: revokeDisplay
+      summary: Revoke a display token (disconnects the screen)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: displayId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Revoked.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/Display'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+
+  # ───────────────────────────── School: reports & audit ─────────────────────────────
+  /v1/t/{tenantId}/reports/pickups:
+    get:
+      tags: [Reports]
+      operationId: reportPickups
+      summary: Pickup history report
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/From'
+        - $ref: './components/parameters.yaml#/To'
+        - name: classId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: state
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/PickupRequestState'
+        - name: guardianId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: './components/parameters.yaml#/Format'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Report page (or CSV when format=csv).
+          content:
+            application/json:
+              schema:
+                $ref: './components/reports.yaml#/PickupReportPage'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/reports/unresolved:
+    get:
+      tags: [Reports]
+      operationId: reportUnresolved
+      summary: Unresolved acknowledgment report (exceptions and resolutions)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/From'
+        - $ref: './components/parameters.yaml#/To'
+        - name: includeResolved
+          in: query
+          schema:
+            type: boolean
+            default: true
+        - $ref: './components/parameters.yaml#/Format'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Report page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/reports.yaml#/PickupReportPage'
+            text/csv:
+              schema:
+                type: string
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/reports/guardian-activity:
+    get:
+      tags: [Reports]
+      operationId: reportGuardianActivity
+      summary: Guardian activity report
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/From'
+        - $ref: './components/parameters.yaml#/To'
+        - name: kind
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/GuardianKind'
+        - $ref: './components/parameters.yaml#/Format'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Report page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/reports.yaml#/GuardianActivityPage'
+            text/csv:
+              schema:
+                type: string
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/reports/device-transfers:
+    get:
+      tags: [Reports]
+      operationId: reportDeviceTransfers
+      summary: Device transfer report
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/From'
+        - $ref: './components/parameters.yaml#/To'
+        - name: suspiciousOnly
+          in: query
+          schema:
+            type: boolean
+        - $ref: './components/parameters.yaml#/Format'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Report page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/reports.yaml#/DeviceTransferReportPage'
+            text/csv:
+              schema:
+                type: string
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/reports/usage:
+    get:
+      tags: [Reports]
+      operationId: reportUsage
+      summary: Daily access and usage report
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/From'
+        - $ref: './components/parameters.yaml#/To'
+        - $ref: './components/parameters.yaml#/Format'
+      responses:
+        '200':
+          description: Usage by day.
+          content:
+            application/json:
+              schema:
+                $ref: './components/reports.yaml#/UsageReport'
+            text/csv:
+              schema:
+                type: string
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/t/{tenantId}/audit-logs:
+    get:
+      tags: [Reports]
+      operationId: listTenantAuditLogs
+      summary: Tenant audit log
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: action
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/AuditAction'
+        - name: actorId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: targetId
+          in: query
+          schema:
+            type: string
+        - $ref: './components/parameters.yaml#/From'
+        - $ref: './components/parameters.yaml#/To'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Audit page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/reports.yaml#/AuditLogPage'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+
+  # ───────────────────────────── Display screens ─────────────────────────────
+  /v1/display/pairing-sessions:
+    post:
+      tags: [Displays]
+      operationId: createPairingSession
+      summary: Start display pairing (shows a code on screen)
+      security: []
+      x-rate-limit: pairing
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: './components/dismissal.yaml#/CreatePairingSessionRequest'
+      responses:
+        '201':
+          description: Pairing session.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/PairingSession'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+  /v1/display/pairing-sessions/{pairingSessionId}:
+    get:
+      tags: [Displays]
+      operationId: getPairingSession
+      summary: Poll pairing status; returns the display token once after pairing
+      security: []
+      parameters:
+        - name: pairingSessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-Pairing-Secret
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/PairingSessionStatusResponse'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '429':
+          $ref: './components/responses.yaml#/TooManyRequests'
+  /v1/display/feed:
+    get:
+      tags: [Displays]
+      operationId: getDisplayFeed
+      summary: Privacy-safe queue snapshot for this display
+      security:
+        - displayAuth: []
+      x-rate-limit: display-feed
+      responses:
+        '200':
+          description: Feed.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/DisplayFeed'
+        '401':
+          description: DISPLAY_REVOKED or UNAUTHENTICATED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '403':
+          description: TENANT_NOT_OPERATIONAL or FEATURE_NOT_ENTITLED.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/display/feed/events:
+    get:
+      tags: [Displays]
+      operationId: getDisplayFeedEvents
+      summary: Missed display events after a sequence number
+      security:
+        - displayAuth: []
+      parameters:
+        - $ref: './components/parameters.yaml#/QueueDate'
+        - $ref: './components/parameters.yaml#/AfterSeq'
+      responses:
+        '200':
+          description: Events.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/DisplayEventPage'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '410':
+          description: QUEUE_CATCHUP_GAP_TOO_LARGE — reload the feed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/display/heartbeat:
+    post:
+      tags: [Displays]
+      operationId: displayHeartbeat
+      summary: Display heartbeat (every 60 s); may rotate the token
+      security:
+        - displayAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: './components/dismissal.yaml#/DisplayHeartbeatRequest'
+      responses:
+        '200':
+          description: Heartbeat acknowledged.
+          content:
+            application/json:
+              schema:
+                $ref: './components/dismissal.yaml#/DisplayHeartbeatResponse'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+
+  # ───────────────────────────── Platform: tenants ─────────────────────────────
+  /v1/platform/tenants:
+    get:
+      tags: [PlatformTenants]
+      operationId: platformListTenants
+      summary: List all tenants
+      parameters:
+        - $ref: './components/parameters.yaml#/Search'
+        - name: state
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: './components/enums.yaml#/TenantLifecycleState'
+        - name: planId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: flag
+          in: query
+          schema:
+            $ref: './components/platform.yaml#/TenantFlag'
+        - name: expiringBefore
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [name, createdAt, expiresAt, lastActivityAt]
+            default: name
+        - name: direction
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/SortDirection'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Tenants page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/TenantPage'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+    post:
+      tags: [PlatformTenants]
+      operationId: platformCreateTenant
+      summary: Create a school tenant
+      parameters:
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/CreateTenantRequest'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/TenantDetail'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '409':
+          description: TENANT_SLUG_TAKEN.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/platform/tenants/{tenantId}:
+    parameters:
+      - $ref: './components/parameters.yaml#/TenantId'
+    get:
+      tags: [PlatformTenants]
+      operationId: platformGetTenant
+      summary: Tenant detail with allowed lifecycle actions
+      responses:
+        '200':
+          description: Tenant (ETag header set).
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/TenantDetail'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    patch:
+      tags: [PlatformTenants]
+      operationId: platformUpdateTenant
+      summary: Update tenant profile
+      parameters:
+        - $ref: './components/parameters.yaml#/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/UpdateTenantRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/TenantDetail'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '412':
+          $ref: './components/responses.yaml#/PreconditionFailed'
+  /v1/platform/tenants/{tenantId}/lifecycle-transitions:
+    post:
+      tags: [PlatformTenants]
+      operationId: platformTransitionTenant
+      summary: Apply a lifecycle action (activate, trial, free, override, suspend, deactivate, cancel, offboard, reinstate, extend)
+      description: Never processes refunds. `refundStatus` is informational only.
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/LifecycleTransitionRequest'
+      responses:
+        '200':
+          description: Transition applied.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/TenantDetail'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          description: INVALID_LIFECYCLE_TRANSITION or LIFECYCLE_STATE_CHANGED (`meta.currentState`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+        '422':
+          description: PLAN_VERSION_NOT_PUBLISHED or missing required fields for the action.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/platform/tenants/{tenantId}/lifecycle-history:
+    get:
+      tags: [PlatformTenants]
+      operationId: platformTenantLifecycleHistory
+      summary: Lifecycle history
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: History page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/LifecycleHistoryPage'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/platform/tenants/{tenantId}/subscription:
+    parameters:
+      - $ref: './components/parameters.yaml#/TenantId'
+    get:
+      tags: [PlatformTenants]
+      operationId: platformGetSubscription
+      summary: Current subscription
+      responses:
+        '200':
+          description: Subscription.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/TenantSubscription'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    put:
+      tags: [PlatformTenants]
+      operationId: platformSetSubscription
+      summary: Assign a plan version and subscription period
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/SetSubscriptionRequest'
+      responses:
+        '200':
+          description: Subscription set.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/TenantSubscription'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
+  /v1/platform/tenants/{tenantId}/entitlements:
+    get:
+      tags: [PlatformTenants]
+      operationId: platformGetEntitlements
+      summary: Effective entitlements with sources
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      responses:
+        '200':
+          description: Effective entitlements.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/EffectiveEntitlements'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/platform/tenants/{tenantId}/entitlement-overrides:
+    parameters:
+      - $ref: './components/parameters.yaml#/TenantId'
+    get:
+      tags: [PlatformTenants]
+      operationId: platformListOverrides
+      summary: Entitlement overrides (active and historical)
+      parameters:
+        - name: activeOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Overrides.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: './components/platform.yaml#/EntitlementOverride'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    post:
+      tags: [PlatformTenants]
+      operationId: platformCreateOverride
+      summary: Apply an entitlement override
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/CreateEntitlementOverrideRequest'
+      responses:
+        '201':
+          description: Override applied.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/EntitlementOverride'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/platform/tenants/{tenantId}/entitlement-overrides/{overrideId}/revoke:
+    post:
+      tags: [PlatformTenants]
+      operationId: platformRevokeOverride
+      summary: Remove an entitlement override (kept for history)
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+        - name: overrideId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/RevokeRequest'
+      responses:
+        '200':
+          description: Revoked.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/EntitlementOverride'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/platform/tenants/{tenantId}/usage:
+    get:
+      tags: [PlatformTenants]
+      operationId: platformGetUsage
+      summary: Usage and limits
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      responses:
+        '200':
+          description: Usage.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/TenantUsage'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/platform/tenants/{tenantId}/notes:
+    parameters:
+      - $ref: './components/parameters.yaml#/TenantId'
+    get:
+      tags: [PlatformTenants]
+      operationId: platformListNotes
+      summary: Internal notes (append-only)
+      parameters:
+        - name: category
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/NoteCategory'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Notes page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/SupportNotePage'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+    post:
+      tags: [PlatformTenants]
+      operationId: platformAddNote
+      summary: Add an internal note (e.g. refund_handled_manually)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/CreateSupportNoteRequest'
+      responses:
+        '201':
+          description: Note added.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/SupportNote'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/platform/tenants/{tenantId}/school-admin-invitations:
+    post:
+      tags: [PlatformTenants]
+      operationId: platformInviteSchoolAdmin
+      summary: Invite a school admin to a tenant
+      parameters:
+        - $ref: './components/parameters.yaml#/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/SchoolAdminInvitationRequest'
+      responses:
+        '201':
+          description: Invitation sent.
+          content:
+            application/json:
+              schema:
+                $ref: './components/school.yaml#/StaffInvitation'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+
+  # ───────────────────────────── Platform: catalog ─────────────────────────────
+  /v1/platform/plans:
+    get:
+      tags: [PlatformCatalog]
+      operationId: platformListPlans
+      summary: Subscription plans with versions
+      responses:
+        '200':
+          description: Plans.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: './components/platform.yaml#/SubscriptionPlan'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+    post:
+      tags: [PlatformCatalog]
+      operationId: platformCreatePlan
+      summary: Create a plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/CreatePlanRequest'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/SubscriptionPlan'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/platform/plans/{planId}:
+    get:
+      tags: [PlatformCatalog]
+      operationId: platformGetPlan
+      summary: Plan detail
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Plan.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/SubscriptionPlan'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/platform/plans/{planId}/versions:
+    post:
+      tags: [PlatformCatalog]
+      operationId: platformCreatePlanVersion
+      summary: Create a draft plan version
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/CreatePlanVersionRequest'
+      responses:
+        '201':
+          description: Draft version.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/PlanVersion'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/platform/plans/{planId}/versions/{versionId}/publish:
+    post:
+      tags: [PlatformCatalog]
+      operationId: platformPublishPlanVersion
+      summary: Publish a plan version (immutable afterwards)
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Published.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/PlanVersion'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/platform/plans/{planId}/versions/{versionId}/retire:
+    post:
+      tags: [PlatformCatalog]
+      operationId: platformRetirePlanVersion
+      summary: Retire a plan version (existing subscriptions keep it)
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Retired.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/PlanVersion'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/platform/feature-flags:
+    get:
+      tags: [PlatformCatalog]
+      operationId: platformListFeatureFlags
+      summary: Feature flags (kill switches and staged rollout)
+      responses:
+        '200':
+          description: Flags.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: './components/platform.yaml#/FeatureFlag'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+  /v1/platform/feature-flags/{flagKey}:
+    put:
+      tags: [PlatformCatalog]
+      operationId: platformUpdateFeatureFlag
+      summary: Update a feature flag
+      parameters:
+        - name: flagKey
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z0-9_.]{2,80}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/UpdateFeatureFlagRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/FeatureFlag'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+
+  # ───────────────────────────── Platform: ops ─────────────────────────────
+  /v1/platform/audit-logs:
+    get:
+      tags: [PlatformOps]
+      operationId: platformListAuditLogs
+      summary: Cross-tenant audit log
+      parameters:
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/AuditAction'
+        - name: actorId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: outcome
+          in: query
+          schema:
+            $ref: './components/enums.yaml#/AuditOutcome'
+        - $ref: './components/parameters.yaml#/From'
+        - $ref: './components/parameters.yaml#/To'
+        - $ref: './components/parameters.yaml#/Format'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Audit page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/reports.yaml#/AuditLogPage'
+            text/csv:
+              schema:
+                type: string
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+  /v1/platform/support-sessions:
+    get:
+      tags: [PlatformOps]
+      operationId: platformListSupportSessions
+      summary: Support sessions (who viewed which tenant, why)
+      parameters:
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Sessions page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/SupportSessionPage'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+    post:
+      tags: [PlatformOps]
+      operationId: platformStartSupportSession
+      summary: Start a read-only, time-boxed support session in a tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/CreateSupportSessionRequest'
+      responses:
+        '201':
+          description: Session with read-only tokens.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/SupportSessionCreated'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/platform/support-sessions/{sessionId}/end:
+    post:
+      tags: [PlatformOps]
+      operationId: platformEndSupportSession
+      summary: End a support session early
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ended.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/SupportSession'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+  /v1/platform/users:
+    get:
+      tags: [PlatformOps]
+      operationId: platformListUsers
+      summary: Platform users
+      parameters:
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Users page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/PlatformUserPage'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+  /v1/platform/user-invitations:
+    post:
+      tags: [PlatformOps]
+      operationId: platformInviteUser
+      summary: Invite a platform user (MFA enrollment required on first sign-in)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/InvitePlatformUserRequest'
+      responses:
+        '201':
+          description: Invitation sent.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/PlatformUser'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+  /v1/platform/users/{userId}:
+    patch:
+      tags: [PlatformOps]
+      operationId: platformUpdateUser
+      summary: Change a platform user's roles or status
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/platform.yaml#/UpdatePlatformUserRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/PlatformUser'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+        '409':
+          description: Cannot remove the last super admin.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
+  /v1/platform/device-transfers:
+    get:
+      tags: [PlatformOps]
+      operationId: platformListDeviceTransfers
+      summary: Cross-tenant device transfers (suspicious-activity view)
+      parameters:
+        - name: suspiciousOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: './components/parameters.yaml#/From'
+        - $ref: './components/parameters.yaml#/To'
+        - $ref: './components/parameters.yaml#/Cursor'
+        - $ref: './components/parameters.yaml#/Limit'
+      responses:
+        '200':
+          description: Transfers page.
+          content:
+            application/json:
+              schema:
+                $ref: './components/platform.yaml#/PlatformDeviceTransferPage'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+  /v1/platform/accounts/{userId}/cooldown-overrides:
+    post:
+      tags: [PlatformOps]
+      operationId: platformCreateCooldownOverride
+      summary: Lift the transfer cooldown once (platform support; no per-term limit)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './components/identity.yaml#/CooldownOverrideRequest'
+      responses:
+        '201':
+          description: Override created.
+          content:
+            application/json:
+              schema:
+                $ref: './components/identity.yaml#/CooldownOverride'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
+        '404':
+          $ref: './components/responses.yaml#/NotFound'
+
+  # ───────────────────────────── Webhooks (internal) ─────────────────────────────
+  /v1/webhooks/google-play:
+    post:
+      tags: [Webhooks]
+      operationId: googlePlayNotification
+      summary: Google Play Real-Time Developer Notification (Pub/Sub push)
+      description: Observes voided purchases / refunds initiated by Google. HomeBell never initiates refunds.
+      x-internal: true
+      security:
+        - webhookAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: object
+                  required: [data, messageId]
+                  properties:
+                    data:
+                      type: string
+                      contentEncoding: base64
+                    messageId:
+                      type: string
+                    publishTime:
+                      type: string
+                      format: date-time
+                subscription:
+                  type: string
+      responses:
+        '204':
+          $ref: './components/responses.yaml#/NoContent'
+        '401':
+          $ref: './components/responses.yaml#/Unauthorized'
+  /v1/webhooks/app-store:
+    post:
+      tags: [Webhooks]
+      operationId: appStoreServerNotification
+      summary: Apple App Store Server Notification V2
+      description: Observes REFUND / REVOKE and related events initiated by Apple. HomeBell never initiates refunds. Authenticity is proven by verifying the signedPayload JWS chain (no bearer token).
+      x-internal: true
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signedPayload]
+              properties:
+                signedPayload:
+                  type: string
+                  description: JWS signed by Apple.
+      responses:
+        '200':
+          description: Accepted.
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+
+components:
+  schemas:
+    # Every shared enum is registered by name so it survives bundling even when it is only
+    # referenced from the realtime contract or not yet used by an operation.
+    TenantLifecycleState: { $ref: './components/enums.yaml#/TenantLifecycleState' }
+    TenantLifecycleAction: { $ref: './components/enums.yaml#/TenantLifecycleAction' }
+    OperationalMode: { $ref: './components/enums.yaml#/OperationalMode' }
+    LifecycleReasonCode: { $ref: './components/enums.yaml#/LifecycleReasonCode' }
+    RefundStatus: { $ref: './components/enums.yaml#/RefundStatus' }
+    DataPlacement: { $ref: './components/enums.yaml#/DataPlacement' }
+    PlanVersionStatus: { $ref: './components/enums.yaml#/PlanVersionStatus' }
+    BillingPeriod: { $ref: './components/enums.yaml#/BillingPeriod' }
+    Currency: { $ref: './components/enums.yaml#/Currency' }
+    EntitlementKind: { $ref: './components/enums.yaml#/EntitlementKind' }
+    EntitlementSource: { $ref: './components/enums.yaml#/EntitlementSource' }
+    FeatureKey: { $ref: './components/enums.yaml#/FeatureKey' }
+    LimitKey: { $ref: './components/enums.yaml#/LimitKey' }
+    NoteCategory: { $ref: './components/enums.yaml#/NoteCategory' }
+    PlatformRole: { $ref: './components/enums.yaml#/PlatformRole' }
+    SchoolRole: { $ref: './components/enums.yaml#/SchoolRole' }
+    GuardianRole: { $ref: './components/enums.yaml#/GuardianRole' }
+    Permission: { $ref: './components/enums.yaml#/Permission' }
+    MembershipState: { $ref: './components/enums.yaml#/MembershipState' }
+    SessionKind: { $ref: './components/enums.yaml#/SessionKind' }
+    SessionScope: { $ref: './components/enums.yaml#/SessionScope' }
+    SessionRevokeReason: { $ref: './components/enums.yaml#/SessionRevokeReason' }
+    OtpPurpose: { $ref: './components/enums.yaml#/OtpPurpose' }
+    OtpChannel: { $ref: './components/enums.yaml#/OtpChannel' }
+    DevicePlatform: { $ref: './components/enums.yaml#/DevicePlatform' }
+    DeviceState: { $ref: './components/enums.yaml#/DeviceState' }
+    CooldownOverrideReason: { $ref: './components/enums.yaml#/CooldownOverrideReason' }
+    StudentStatus: { $ref: './components/enums.yaml#/StudentStatus' }
+    DismissalEligibility: { $ref: './components/enums.yaml#/DismissalEligibility' }
+    GuardianKind: { $ref: './components/enums.yaml#/GuardianKind' }
+    GuardianState: { $ref: './components/enums.yaml#/GuardianState' }
+    Relationship: { $ref: './components/enums.yaml#/Relationship' }
+    InvitationState: { $ref: './components/enums.yaml#/InvitationState' }
+    LicenseSeatState: { $ref: './components/enums.yaml#/LicenseSeatState' }
+    LicenseSeatSource: { $ref: './components/enums.yaml#/LicenseSeatSource' }
+    LicenseValidityMode: { $ref: './components/enums.yaml#/LicenseValidityMode' }
+    PickupRequestState: { $ref: './components/enums.yaml#/PickupRequestState' }
+    PickupResolution: { $ref: './components/enums.yaml#/PickupResolution' }
+    PickupActorType: { $ref: './components/enums.yaml#/PickupActorType' }
+    VerificationMethod: { $ref: './components/enums.yaml#/VerificationMethod' }
+    DisplayState: { $ref: './components/enums.yaml#/DisplayState' }
+    DisplayNameFormat: { $ref: './components/enums.yaml#/DisplayNameFormat' }
+    PairingSessionStatus: { $ref: './components/enums.yaml#/PairingSessionStatus' }
+    BillingProvider: { $ref: './components/enums.yaml#/BillingProvider' }
+    PurchaseState: { $ref: './components/enums.yaml#/PurchaseState' }
+    PushProvider: { $ref: './components/enums.yaml#/PushProvider' }
+    NotificationType: { $ref: './components/enums.yaml#/NotificationType' }
+    ImportType: { $ref: './components/enums.yaml#/ImportType' }
+    ImportStatus: { $ref: './components/enums.yaml#/ImportStatus' }
+    ImportRowStatus: { $ref: './components/enums.yaml#/ImportRowStatus' }
+    AuditActorType: { $ref: './components/enums.yaml#/AuditActorType' }
+    AuditOutcome: { $ref: './components/enums.yaml#/AuditOutcome' }
+    AuditAction: { $ref: './components/enums.yaml#/AuditAction' }
+    SortDirection: { $ref: './components/enums.yaml#/SortDirection' }
+    ErrorCode: { $ref: './components/common.yaml#/ErrorCode' }
+    Problem: { $ref: './components/common.yaml#/Problem' }
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token for staff, platform, guardian and support sessions.
+    displayAuth:
+      type: http
+      scheme: bearer
+      description: Opaque display token from pairing (scope display:read).
+    webhookAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Google-signed OIDC token from the Pub/Sub push subscription.

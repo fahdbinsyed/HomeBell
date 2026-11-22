@@ -1,0 +1,294 @@
+# Shared primitive and envelope schemas.
+
+Uuid:
+  type: string
+  format: uuid
+  example: 0193a1b2-7c4d-7e8f-9a0b-1c2d3e4f5a6b
+Timestamp:
+  type: string
+  format: date-time
+  description: RFC 3339 timestamp in UTC.
+  example: '2026-11-23T14:31:07Z'
+LocalDate:
+  type: string
+  format: date
+  description: Calendar date in the tenant's timezone.
+  example: '2026-11-23'
+LocalTime:
+  type: string
+  pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+  description: 24h local time HH:mm in the tenant's timezone.
+  example: '14:30'
+PhoneE164:
+  type: string
+  pattern: '^\+[1-9]\d{6,14}$'
+  example: '+15551234567'
+MaskedPhone:
+  type: string
+  description: Country code + last 4 digits, e.g. "+1•••••4567".
+  example: '+1•••••4567'
+Email:
+  type: string
+  format: email
+  maxLength: 254
+IanaTimezone:
+  type: string
+  maxLength: 64
+  example: America/New_York
+CountryCode:
+  type: string
+  pattern: '^[A-Z]{2}$'
+  description: ISO 3166-1 alpha-2.
+  example: US
+PersonName:
+  type: string
+  minLength: 1
+  maxLength: 120
+Note:
+  type: string
+  maxLength: 2000
+Money:
+  type: object
+  required: [amountMinor, currency]
+  properties:
+    amountMinor:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Amount in minor units (cents).
+    currency:
+      $ref: './enums.yaml#/Currency'
+GeoPoint:
+  type: object
+  required: [lat, lng]
+  properties:
+    lat:
+      type: number
+      format: double
+      minimum: -90
+      maximum: 90
+    lng:
+      type: number
+      format: double
+      minimum: -180
+      maximum: 180
+DeviceLocation:
+  type: object
+  required: [lat, lng, accuracyMeters, capturedAt]
+  properties:
+    lat:
+      type: number
+      format: double
+      minimum: -90
+      maximum: 90
+    lng:
+      type: number
+      format: double
+      minimum: -180
+      maximum: 180
+    accuracyMeters:
+      type: number
+      minimum: 0
+    capturedAt:
+      $ref: '#/Timestamp'
+ActorRef:
+  type: object
+  required: [type, displayName]
+  properties:
+    type:
+      $ref: './enums.yaml#/AuditActorType'
+    id:
+      type: [string, 'null']
+      format: uuid
+    displayName:
+      type: string
+      description: 'Human-readable label (e.g. staff name, "System", "Display: Front Gate").'
+PageMeta:
+  type: object
+  required: [nextCursor, limit]
+  properties:
+    nextCursor:
+      type: [string, 'null']
+      description: Opaque cursor for the next page; null when there are no more items.
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 100
+    totalEstimate:
+      type: [integer, 'null']
+      description: Optional approximate total count (may be omitted for large sets).
+BulkActionResult:
+  type: object
+  required: [succeeded, failed]
+  properties:
+    succeeded:
+      type: array
+      items:
+        $ref: '#/Uuid'
+    failed:
+      type: array
+      items:
+        type: object
+        required: [id, code]
+        properties:
+          id:
+            $ref: '#/Uuid'
+          code:
+            $ref: '#/ErrorCode'
+          detail:
+            type: string
+
+FieldError:
+  type: object
+  required: [field, code, message]
+  properties:
+    field:
+      type: string
+      description: JSON pointer-ish path, e.g. "students[2].phone".
+    code:
+      type: string
+      description: Validation rule identifier, e.g. "required", "max_length", "invalid_format".
+    message:
+      type: string
+Problem:
+  type: object
+  description: RFC 9457 problem details with HomeBell extensions. Content type application/problem+json.
+  required: [type, title, status, code, traceId]
+  properties:
+    type:
+      type: string
+      format: uri-reference
+      description: 'https://docs.homebell.app/errors/{code-in-kebab-case}'
+    title:
+      type: string
+    status:
+      type: integer
+      minimum: 400
+      maximum: 599
+    detail:
+      type: string
+      description: Human-readable, not for programmatic matching. Use `code`.
+    instance:
+      type: string
+    code:
+      $ref: '#/ErrorCode'
+    traceId:
+      type: string
+    errors:
+      type: array
+      description: Present when code = VALIDATION_FAILED.
+      items:
+        $ref: '#/FieldError'
+    meta:
+      type: object
+      description: >-
+        Code-specific machine-readable details, e.g. retryAfterSeconds, lockedUntil, cooldownEndsAt,
+        remainingAttempts, existingRequestId, currentState, limit, operationalMode.
+      additionalProperties: true
+
+ErrorCode:
+  type: string
+  description: Machine-readable error code. Catalog with HTTP status and meaning in packages/contracts/ERROR_CODES.md.
+  enum:
+    # generic
+    - VALIDATION_FAILED
+    - BAD_REQUEST
+    - UNAUTHENTICATED
+    - TOKEN_EXPIRED
+    - SESSION_REVOKED
+    - FORBIDDEN
+    - SCOPE_INSUFFICIENT
+    - NOT_FOUND
+    - CONFLICT
+    - PRECONDITION_FAILED
+    - RATE_LIMITED
+    - IDEMPOTENCY_KEY_REQUIRED
+    - IDEMPOTENCY_KEY_REUSED
+    - IDEMPOTENCY_IN_PROGRESS
+    - PAYLOAD_TOO_LARGE
+    - UNSUPPORTED_MEDIA_TYPE
+    - INTERNAL_ERROR
+    - SERVICE_UNAVAILABLE
+    # staff / platform auth
+    - INVALID_CREDENTIALS
+    - MFA_REQUIRED
+    - MFA_INVALID
+    - MFA_ENROLLMENT_REQUIRED
+    - ACCOUNT_LOCKED
+    - ACCOUNT_DEACTIVATED
+    - REFRESH_TOKEN_INVALID
+    - REFRESH_TOKEN_REUSED
+    - PASSWORD_POLICY_VIOLATION
+    - STAFF_INVITATION_INVALID
+    - SUPPORT_SESSION_EXPIRED
+    # otp
+    - OTP_RESEND_TOO_SOON
+    - OTP_SEND_LIMIT_REACHED
+    - OTP_INVALID
+    - OTP_EXPIRED
+    - OTP_ATTEMPTS_EXCEEDED
+    - OTP_LOCKED
+    - OTP_CHALLENGE_NOT_FOUND
+    - OTP_TEMPORARILY_UNAVAILABLE
+    - PHONE_NOT_SUPPORTED
+    # devices
+    - DEVICE_ID_REQUIRED
+    - DEVICE_REVOKED
+    - DEVICE_MISMATCH
+    - DEVICE_TRANSFER_COOLDOWN
+    - DEVICE_CONFLICT_TOKEN_INVALID
+    - COOLDOWN_OVERRIDE_LIMIT_REACHED
+    # tenant / entitlements
+    - TENANT_NOT_OPERATIONAL
+    - TENANT_READ_ONLY
+    - FEATURE_NOT_ENTITLED
+    - LIMIT_EXCEEDED
+    - INVALID_LIFECYCLE_TRANSITION
+    - LIFECYCLE_STATE_CHANGED
+    - TENANT_SLUG_TAKEN
+    - PLAN_VERSION_NOT_PUBLISHED
+    # guardians
+    - GUARDIAN_BLOCKED
+    - GUARDIAN_DEACTIVATED
+    - GUARDIAN_ACCESS_EXPIRED
+    - GUARDIAN_REVOKED
+    - GUARDIAN_NOT_LINKED
+    - GUARDIAN_PHONE_IN_USE
+    - PRIMARY_GUARDIAN_EXISTS
+    - PRIMARY_GUARDIAN_REQUIRED
+    - ADDITIONAL_GUARDIAN_LIMIT_REACHED
+    # students / pickup
+    - STUDENT_INACTIVE
+    - STUDENT_NOT_ELIGIBLE
+    - CLASS_NOT_EMPTY
+    - OUTSIDE_DISMISSAL_WINDOW
+    - LOCATION_REQUIRED
+    - OUTSIDE_PICKUP_ZONE
+    - DUPLICATE_ACTIVE_REQUEST
+    - INVALID_PICKUP_TRANSITION
+    - PICKUP_REQUEST_CLOSED
+    - SENT_OUT_STEP_DISABLED
+    # invitations / seats / billing
+    - INVITATION_NOT_FOUND
+    - INVITATION_EXPIRED
+    - INVITATION_ALREADY_USED
+    - INVITATION_REVOKED
+    - INVITATION_PHONE_MISMATCH
+    - NO_AVAILABLE_SEAT
+    - SEAT_REASSIGNMENT_LIMIT
+    - INVALID_VALIDITY_WINDOW
+    - PURCHASE_VERIFICATION_FAILED
+    - PURCHASE_ALREADY_PROCESSED
+    - PURCHASE_PENDING
+    - PURCHASE_INTENT_EXPIRED
+    # displays / realtime
+    - PAIRING_CODE_INVALID
+    - PAIRING_CODE_EXPIRED
+    - DISPLAY_REVOKED
+    - DISPLAY_LIMIT_REACHED
+    - QUEUE_CATCHUP_GAP_TOO_LARGE
+    # imports
+    - IMPORT_INVALID_FILE
+    - IMPORT_NOT_VALIDATED
+    - IMPORT_HAS_ERRORS
+    - IMPORT_ALREADY_COMMITTED

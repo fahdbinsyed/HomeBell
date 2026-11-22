@@ -1,0 +1,11 @@
+<Project>
+  <!--
+    Central package management. Phase 0 only needs test packages.
+    Phase 2 adds: Npgsql.EntityFrameworkCore.PostgreSQL, Microsoft.EntityFrameworkCore.Design,
+    Microsoft.AspNetCore.SignalR.StackExchangeRedis, StackExchange.Redis, Serilog.AspNetCore,
+    OpenTelemetry.*, Testcontainers.PostgreSql, Testcontainers.Redis — each pinned here.
+  -->
+  <ItemGroup>
+    <PackageVersion Include="xunit.v3" Version="4.0.3" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,472 @@
+# Dismissal: pickup requests, live queue, queue events, display feed.
+
+PickupStatusChange:
+  type: object
+  required: [fromState, toState, actorType, at]
+  properties:
+    fromState:
+      oneOf:
+        - $ref: './enums.yaml#/PickupRequestState'
+        - type: 'null'
+    toState:
+      $ref: './enums.yaml#/PickupRequestState'
+    actorType:
+      $ref: './enums.yaml#/PickupActorType'
+    actor:
+      oneOf:
+        - $ref: './common.yaml#/ActorRef'
+        - type: 'null'
+    reason:
+      type: [string, 'null']
+    at:
+      $ref: './common.yaml#/Timestamp'
+QueueItem:
+  type: object
+  description: Staff view of a pickup request in the live queue.
+  required: [id, queueDate, seq, state, student, guardian, requestedAt, stale, verificationMethod]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    queueDate:
+      $ref: './common.yaml#/LocalDate'
+    seq:
+      type: integer
+      format: int64
+      description: Sequence of the last event that changed this item.
+    position:
+      type: [integer, 'null']
+      description: 1-based position among open requests; null once closed.
+    state:
+      $ref: './enums.yaml#/PickupRequestState'
+    student:
+      type: object
+      required: [id, firstName, lastName, className]
+      properties:
+        id:
+          $ref: './common.yaml#/Uuid'
+        firstName:
+          type: string
+        lastName:
+          type: string
+        preferredName:
+          type: [string, 'null']
+        classId:
+          $ref: './common.yaml#/Uuid'
+        className:
+          type: string
+        sectionName:
+          type: [string, 'null']
+    guardian:
+      type: object
+      required: [id, fullName, kind, relationship]
+      properties:
+        id:
+          $ref: './common.yaml#/Uuid'
+        fullName:
+          type: string
+        kind:
+          $ref: './enums.yaml#/GuardianKind'
+        relationship:
+          $ref: './enums.yaml#/Relationship'
+    requestedAt:
+      $ref: './common.yaml#/Timestamp'
+    sentOutAt:
+      type: [string, 'null']
+      format: date-time
+    sentOutBy:
+      oneOf:
+        - $ref: './common.yaml#/ActorRef'
+        - type: 'null'
+    acknowledgedAt:
+      type: [string, 'null']
+      format: date-time
+    closedAt:
+      type: [string, 'null']
+      format: date-time
+    exceptionAt:
+      type: [string, 'null']
+      format: date-time
+    resolution:
+      oneOf:
+        - $ref: './enums.yaml#/PickupResolution'
+        - type: 'null'
+    stale:
+      type: boolean
+    reminderSentAt:
+      type: [string, 'null']
+      format: date-time
+    note:
+      type: [string, 'null']
+      description: Optional guardian note (e.g. "silver car, gate 2").
+    verificationMethod:
+      $ref: './enums.yaml#/VerificationMethod'
+PickupRequestDetail:
+  allOf:
+    - $ref: '#/QueueItem'
+    - type: object
+      required: [history]
+      properties:
+        history:
+          type: array
+          items:
+            $ref: '#/PickupStatusChange'
+        acknowledgment:
+          oneOf:
+            - type: object
+              required: [guardianId, guardianName, at, viaSentOut]
+              properties:
+                guardianId:
+                  $ref: './common.yaml#/Uuid'
+                guardianName:
+                  type: string
+                at:
+                  $ref: './common.yaml#/Timestamp'
+                viaSentOut:
+                  type: boolean
+            - type: 'null'
+QueueSnapshot:
+  type: object
+  required: [tenantId, queueDate, seq, items, generatedAt]
+  properties:
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    queueDate:
+      $ref: './common.yaml#/LocalDate'
+    seq:
+      type: integer
+      format: int64
+      description: Latest sequence number included in this snapshot. Use as afterSeq for catch-up.
+    items:
+      type: array
+      items:
+        $ref: '#/QueueItem'
+    generatedAt:
+      $ref: './common.yaml#/Timestamp'
+QueueEventType:
+  type: string
+  enum: [queue.request.created, queue.request.updated, queue.reset]
+QueueEvent:
+  type: object
+  description: Same envelope as the realtime `queue.*` events (see realtime.asyncapi.yaml).
+  required: [eventId, type, version, tenantId, queueDate, seq, occurredAt, data]
+  properties:
+    eventId:
+      $ref: './common.yaml#/Uuid'
+    type:
+      $ref: '#/QueueEventType'
+    version:
+      type: integer
+      enum: [1]
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    queueDate:
+      $ref: './common.yaml#/LocalDate'
+    seq:
+      type: integer
+      format: int64
+    occurredAt:
+      $ref: './common.yaml#/Timestamp'
+    data:
+      type: object
+      properties:
+        item:
+          $ref: '#/QueueItem'
+        reason:
+          type: string
+          description: For queue.reset (day_rollover | resync_required).
+QueueEventPage:
+  type: object
+  required: [events, latestSeq, hasMore]
+  properties:
+    events:
+      type: array
+      maxItems: 500
+      items:
+        $ref: '#/QueueEvent'
+    latestSeq:
+      type: integer
+      format: int64
+    hasMore:
+      type: boolean
+SentOutBulkRequest:
+  type: object
+  required: [requestIds]
+  properties:
+    requestIds:
+      type: array
+      minItems: 1
+      maxItems: 50
+      items:
+        $ref: './common.yaml#/Uuid'
+StaffCancelRequest:
+  type: object
+  required: [reason]
+  properties:
+    reason:
+      type: string
+      minLength: 3
+      maxLength: 500
+ResolveExceptionRequest:
+  type: object
+  required: [resolution, note]
+  properties:
+    resolution:
+      $ref: './enums.yaml#/PickupResolution'
+    note:
+      $ref: './common.yaml#/Note'
+
+CreatePickupRequest:
+  type: object
+  required: [tenantId, studentIds]
+  properties:
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    studentIds:
+      type: array
+      minItems: 1
+      maxItems: 10
+      description: One request is created per student (siblings in one tap). Partial failures are reported per student.
+      items:
+        $ref: './common.yaml#/Uuid'
+    note:
+      type: string
+      maxLength: 200
+    location:
+      description: Required when the tenant's location rule is enabled.
+      $ref: './common.yaml#/DeviceLocation'
+GuardianPickupRequest:
+  type: object
+  description: Guardian view of their own pickup request.
+  required:
+    [id, tenantId, studentId, studentFirstName, state, requestedAt, canAcknowledge, canCancel]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    tenantName:
+      type: string
+    studentId:
+      $ref: './common.yaml#/Uuid'
+    studentFirstName:
+      type: string
+    state:
+      $ref: './enums.yaml#/PickupRequestState'
+    requestedAt:
+      $ref: './common.yaml#/Timestamp'
+    requestedBy:
+      type: object
+      required: [guardianId, fullName, isMe]
+      properties:
+        guardianId:
+          $ref: './common.yaml#/Uuid'
+        fullName:
+          type: string
+        isMe:
+          type: boolean
+    sentOutAt:
+      type: [string, 'null']
+      format: date-time
+    acknowledgedAt:
+      type: [string, 'null']
+      format: date-time
+    closedAt:
+      type: [string, 'null']
+      format: date-time
+    position:
+      type: [integer, 'null']
+    canAcknowledge:
+      type: boolean
+    canCancel:
+      type: boolean
+    statusMessage:
+      type: string
+      description: Short localized message for the current state.
+CreatePickupResult:
+  type: object
+  required: [created, rejected]
+  properties:
+    created:
+      type: array
+      items:
+        $ref: '#/GuardianPickupRequest'
+    rejected:
+      type: array
+      items:
+        type: object
+        required: [studentId, code]
+        properties:
+          studentId:
+            $ref: './common.yaml#/Uuid'
+          code:
+            $ref: './common.yaml#/ErrorCode'
+          existingRequestId:
+            type: [string, 'null']
+            format: uuid
+          detail:
+            type: string
+GuardianPickupRequestPage:
+  allOf:
+    - $ref: './common.yaml#/PageMeta'
+    - type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/GuardianPickupRequest'
+GuardianCancelRequest:
+  type: object
+  properties:
+    reason:
+      type: string
+      maxLength: 200
+
+DisplayItem:
+  type: object
+  description: Privacy-reduced queue item for public display screens. Never contains phone numbers, guardian names or notes.
+  required: [id, displayName, state, requestedAt]
+  properties:
+    id:
+      $ref: './common.yaml#/Uuid'
+    displayName:
+      type: string
+      description: Formatted per tenant display.nameFormat, e.g. "Aisha K." or "A.K.".
+    classLabel:
+      type: [string, 'null']
+    state:
+      type: string
+      enum: [requested, sent_out]
+      description: Only open, non-exception items are shown; closed items are removed via events.
+    requestedAt:
+      $ref: './common.yaml#/Timestamp'
+    seq:
+      type: integer
+      format: int64
+DisplayFeed:
+  type: object
+  required: [tenantId, displayId, queueDate, seq, items, settings, generatedAt]
+  properties:
+    tenantId:
+      $ref: './common.yaml#/Uuid'
+    displayId:
+      $ref: './common.yaml#/Uuid'
+    displayName:
+      type: string
+    queueDate:
+      $ref: './common.yaml#/LocalDate'
+    seq:
+      type: integer
+      format: int64
+    items:
+      type: array
+      items:
+        $ref: '#/DisplayItem'
+    settings:
+      type: object
+      required: [schoolName, theme]
+      properties:
+        schoolName:
+          type: string
+        logoUrl:
+          type: [string, 'null']
+        primaryColor:
+          type: [string, 'null']
+        theme:
+          type: string
+          enum: [light, dark, auto]
+    generatedAt:
+      $ref: './common.yaml#/Timestamp'
+DisplayEvent:
+  type: object
+  required: [eventId, type, seq, queueDate, occurredAt]
+  properties:
+    eventId:
+      $ref: './common.yaml#/Uuid'
+    type:
+      type: string
+      enum: [display.item.upserted, display.item.removed, queue.reset]
+    seq:
+      type: integer
+      format: int64
+    queueDate:
+      $ref: './common.yaml#/LocalDate'
+    occurredAt:
+      $ref: './common.yaml#/Timestamp'
+    item:
+      oneOf:
+        - $ref: '#/DisplayItem'
+        - type: 'null'
+    itemId:
+      type: [string, 'null']
+      format: uuid
+DisplayEventPage:
+  type: object
+  required: [events, latestSeq, hasMore]
+  properties:
+    events:
+      type: array
+      maxItems: 500
+      items:
+        $ref: '#/DisplayEvent'
+    latestSeq:
+      type: integer
+      format: int64
+    hasMore:
+      type: boolean
+PairingSession:
+  type: object
+  required: [pairingSessionId, pairingCode, pollSecret, expiresAt, pollIntervalSeconds]
+  properties:
+    pairingSessionId:
+      $ref: './common.yaml#/Uuid'
+    pairingCode:
+      type: string
+      description: 8-char Crockford base32 code shown on screen (and encoded in a QR).
+    pollSecret:
+      type: string
+      description: Sent as X-Pairing-Secret when polling; prevents others from claiming the token.
+    expiresAt:
+      $ref: './common.yaml#/Timestamp'
+    pollIntervalSeconds:
+      type: integer
+      minimum: 2
+CreatePairingSessionRequest:
+  type: object
+  properties:
+    appVersion:
+      type: string
+      maxLength: 50
+PairingSessionStatusResponse:
+  type: object
+  required: [status]
+  properties:
+    status:
+      $ref: './enums.yaml#/PairingSessionStatus'
+    displayToken:
+      type: [string, 'null']
+      description: Returned exactly once, on the first poll after pairing.
+    displayId:
+      type: [string, 'null']
+      format: uuid
+    tenantId:
+      type: [string, 'null']
+      format: uuid
+DisplayHeartbeatRequest:
+  type: object
+  properties:
+    appVersion:
+      type: string
+      maxLength: 50
+    lastSeq:
+      type: integer
+      format: int64
+DisplayHeartbeatResponse:
+  type: object
+  required: [serverTime]
+  properties:
+    serverTime:
+      $ref: './common.yaml#/Timestamp'
+    rotatedToken:
+      type: [string, 'null']
+      description: When present, replace the stored display token immediately.
