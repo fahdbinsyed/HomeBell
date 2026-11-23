@@ -12,8 +12,11 @@ no Docker. Current registry: Next.js 16.x (`node >= 20.9`), Expo SDK 58, Redocly
 
 ## Decision
 
-- **Node ≥ 22.12, recommended 24 LTS** (`.nvmrc` = 24, `engines.node`). Developers must upgrade from 20.x.
-- **pnpm 10.34.x** via `packageManager` (Corepack). pnpm 12 is evaluated later.
+- **Node 26 LTS** (`.nvmrc` = 26). `engines.node` stays `>=22.13.0` (the floor required by Expo 58 /
+  React Native 0.88, MSW 3, Vitest 5). _Updated 2026-11-23: dev machine upgraded to Node 26.13.1 via
+  `winget install OpenJS.NodeJS.LTS`._
+- **pnpm 10.34.x**, pinned in `packageManager`. Node 25+ no longer bundles Corepack, so pnpm is installed
+  with `npm install -g pnpm@10.34.9` (or `npm i -g corepack && corepack enable`). pnpm 12 is evaluated later.
 - **TypeScript 5.9.3** across the repo until the generator and lint tooling officially support TS 7.
 - **.NET SDK 10.0.4xx** pinned in `backend/global.json` (`rollForward: latestFeature`), target `net10.0`.
 - **Docker Desktop (or Podman)** required from Phase 2 for Postgres/Redis and Testcontainers.
@@ -25,4 +28,4 @@ no Docker. Current registry: Next.js 16.x (`node >= 20.9`), Expo SDK 58, Redocly
 
 ## Consequences
 
-CI images use Node 24 and .NET 10 SDK. Re-check versions at the start of each phase.
+CI images use Node 26 and .NET 10 SDK. Re-check versions at the start of each phase.

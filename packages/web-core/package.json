@@ -1,0 +1,31 @@
+{
+  "name": "@homebell/web-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared web app plumbing: API/mock environment provider, auth hooks, live queue with realtime catch-up, pagination.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@homebell/api-client": "workspace:*",
+    "@homebell/client-services": "workspace:*",
+    "@homebell/contracts": "workspace:*",
+    "@homebell/copy": "workspace:*",
+    "@homebell/mocks": "workspace:*",
+    "@homebell/ui-web": "workspace:*",
+    "@tanstack/react-query": "5.108.3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@homebell/config": "workspace:*",
+    "@types/react": "19.3.0",
+    "react": "19.3.1",
+    "typescript": "5.9.3"
+  }
+}

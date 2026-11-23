@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HomeBell API
-  version: 1.0.0
+  version: 1.1.0
   summary: Multi-tenant school pickup and dismissal platform.
   description: |
     HomeBell API v1 — the single source of truth for frontend and backend (ADR-0004).
@@ -265,6 +265,12 @@ paths:
                 $ref: './components/identity.yaml#/StaffLoginResult'
         '400':
           $ref: './components/responses.yaml#/BadRequest'
+        '401':
+          description: INVALID_CREDENTIALS — an existing account accepted with the wrong password.
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/common.yaml#/Problem'
         '410':
           $ref: './components/responses.yaml#/Gone'
   /v1/auth/otp/send:
@@ -646,8 +652,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/identity.yaml#/Me'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
     patch:
       tags: [Guardian]
       operationId: updateMyProfile
@@ -671,6 +681,8 @@ paths:
           $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
   /v1/me/terms-acceptance:
     post:
       tags: [Guardian]
@@ -691,6 +703,8 @@ paths:
           $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
   /v1/me/children:
     get:
       tags: [Guardian]
@@ -705,8 +719,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/guardians.yaml#/ChildList'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
   /v1/me/pickup-requests:
     get:
       tags: [Guardian]
@@ -735,8 +753,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/dismissal.yaml#/GuardianPickupRequestPage'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
     post:
       tags: [Guardian]
       operationId: createPickupRequest
@@ -802,8 +824,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/dismissal.yaml#/GuardianPickupRequest'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
         '404':
           $ref: './components/responses.yaml#/NotFound'
   /v1/me/pickup-requests/{requestId}/acknowledge:
@@ -822,6 +848,8 @@ paths:
             application/json:
               schema:
                 $ref: './components/dismissal.yaml#/GuardianPickupRequest'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
         '403':
@@ -855,8 +883,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/dismissal.yaml#/GuardianPickupRequest'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
         '404':
           $ref: './components/responses.yaml#/NotFound'
         '409':
@@ -875,8 +907,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/identity.yaml#/DeviceStatus'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
   /v1/me/push-tokens:
     post:
       tags: [Guardian]
@@ -897,6 +933,8 @@ paths:
           $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
   /v1/me/push-tokens/current:
     delete:
       tags: [Guardian]
@@ -907,8 +945,12 @@ paths:
       responses:
         '204':
           $ref: './components/responses.yaml#/NoContent'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
   /v1/me/notifications:
     get:
       tags: [Guardian]
@@ -930,8 +972,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/reports.yaml#/NotificationPage'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
   /v1/me/notifications/read:
     post:
       tags: [Guardian]
@@ -952,6 +998,8 @@ paths:
           $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
 
   # ───────────────────────────── Guardian licensing ─────────────────────────────
   /v1/me/license-seats:
@@ -973,6 +1021,8 @@ paths:
             application/json:
               schema:
                 $ref: './components/guardians.yaml#/LicenseSeatList'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
         '403':
@@ -999,6 +1049,8 @@ paths:
             application/json:
               schema:
                 $ref: './components/guardians.yaml#/PurchaseIntent'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
         '403':
@@ -1040,8 +1092,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/guardians.yaml#/PurchaseResult'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
         '404':
           $ref: './components/responses.yaml#/NotFound'
         '409':
@@ -1081,6 +1137,8 @@ paths:
             application/json:
               schema:
                 $ref: './components/guardians.yaml#/AdditionalGuardianList'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
         '403':
@@ -1143,6 +1201,8 @@ paths:
           $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
         '404':
           $ref: './components/responses.yaml#/NotFound'
         '422':
@@ -1162,8 +1222,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/guardians.yaml#/AdditionalGuardian'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
         '404':
           $ref: './components/responses.yaml#/NotFound'
         '409':
@@ -1183,8 +1247,12 @@ paths:
             application/json:
               schema:
                 $ref: './components/guardians.yaml#/GuardianInvitationCreated'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
         '401':
           $ref: './components/responses.yaml#/Unauthorized'
+        '403':
+          $ref: './components/responses.yaml#/Forbidden'
         '404':
           $ref: './components/responses.yaml#/NotFound'
         '409':

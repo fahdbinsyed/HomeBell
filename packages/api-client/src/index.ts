@@ -3,6 +3,30 @@ import { isProblem, type ErrorCode, type paths, type Problem } from '@homebell/c
 
 export type HomeBellClient = ReturnType<typeof createClient<paths>>;
 
+// ── Guardian app client: X-Device-Id is injected by middleware on every request, so it is removed
+// from the per-call parameter types (it stays required on the wire — see contract).
+type WithoutDevice<H> = H extends Record<string, unknown> ? Omit<H, 'X-Device-Id'> : H;
+type FixOperation<O> = O extends { parameters: infer P extends { header?: unknown } }
+  ? Omit<O, 'parameters'> & {
+      parameters: Omit<P, 'header'> &
+        ([NonNullable<P['header']>] extends [never]
+          ? { header?: never }
+          : [keyof WithoutDevice<NonNullable<P['header']>>] extends [never]
+            ? { header?: never }
+            : { header: WithoutDevice<NonNullable<P['header']>> });
+    }
+  : O;
+type FixPathItem<I> = { [M in keyof I]: FixOperation<I[M]> };
+export type GuardianPaths = { [K in keyof paths]: FixPathItem<paths[K]> };
+export type GuardianClient = ReturnType<typeof createClient<GuardianPaths>>;
+
+/** Client for the guardian app; requires `getDeviceId` (X-Device-Id is added by middleware). */
+export const createGuardianClient = (
+  options: HomeBellClientOptions & {
+    getDeviceId: NonNullable<HomeBellClientOptions['getDeviceId']>;
+  },
+): GuardianClient => createHomeBellClient(options) as unknown as GuardianClient;
+
 export interface HomeBellClientOptions {
   /**
    * Web apps: the BFF prefix (e.g. "/api/hb") — the BFF adds the bearer token server-side.

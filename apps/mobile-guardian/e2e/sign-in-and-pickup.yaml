@@ -1,0 +1,35 @@
+# Maestro flow — runs unchanged on Android (emulator/device) and iOS (simulator/device).
+# Requires a development build in mock mode. Run: maestro test e2e/
+appId: com.neuxplus.homebell
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: start-sign-in
+- tapOn:
+    id: phone-input
+- inputText: '+15550100001'
+- tapOn:
+    id: send-code
+- assertVisible:
+    id: verify-screen
+- tapOn:
+    id: otp-input
+- inputText: '000000'
+- assertVisible:
+    id: terms-screen
+- tapOn:
+    id: accept-terms
+- assertVisible:
+    id: home-screen
+- assertVisible: 'Greenfield Academy'
+- tapOn:
+    id: request-pickup-Greenfield
+- assertVisible:
+    id: request-screen
+- tapOn:
+    id: confirm-request
+- assertVisible: 'Request sent'
+- tapOn: 'Done'
+- assertVisible:
+    id: home-screen

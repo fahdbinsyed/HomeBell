@@ -1,0 +1,20 @@
+{
+  "name": "@homebell/design-tokens",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared colour, type, spacing and state-tone tokens for web (tokens.css) and React Native (tokens.ts).",
+  "exports": {
+    ".": "./src/tokens.ts",
+    "./tokens.css": "./tokens.css"
+  },
+  "scripts": {
+    "generate": "node scripts/build-css.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@homebell/config": "workspace:*",
+    "@types/node": "26.6.6",
+    "typescript": "5.9.3"
+  }
+}

@@ -7,7 +7,7 @@ identity-verified physical handoff and does not process refunds.)
 
 ## Status
 
-**Phase 0 complete** — blueprint, monorepo, backend skeleton, API contract v1. See
+**Phase 0 complete; Phase 1 built** (all apps on the mock API — see status table). See
 [docs/architecture/12-delivery-phases.md](docs/architecture/12-delivery-phases.md).
 
 ## Layout
@@ -25,7 +25,7 @@ identity-verified physical handoff and does not process refunds.)
 
 ## Prerequisites
 
-Node ≥ 22.12 (24 LTS recommended), pnpm 10 (`corepack enable`), .NET SDK 10.0.4xx, Docker (from Phase 2),
+Node 26 LTS (≥ 22.13), pnpm 10 (`npm i -g pnpm@10.34.9`), .NET SDK 10.0.4xx, Docker (from Phase 2),
 EAS CLI + Apple Developer account + iOS test device or macOS runner (from Phase 1). See ADR-0015/0017.
 
 ## Commands

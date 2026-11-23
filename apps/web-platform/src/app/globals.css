@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+@import '@homebell/ui-web/styles.css';
+
+@source '../../../../packages/ui-web/src';
+@source '../../../../packages/web-core/src';

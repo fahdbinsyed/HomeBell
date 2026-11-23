@@ -52,6 +52,15 @@ test('guardian self-service and invitation operations require X-Device-Id', () =
   }
 });
 
+test('guardian operations document 400 (DEVICE_ID_REQUIRED) and 403 (scope / guardian state)', () => {
+  for (const { path, method, op } of operations()) {
+    if (!path.startsWith('/v1/me/')) continue;
+    for (const status of ['400', '403']) {
+      assert.ok(op.responses[status], `${method.toUpperCase()} ${path} must document ${status}`);
+    }
+  }
+});
+
 test('retry-prone writes require Idempotency-Key', () => {
   const mustBeIdempotent = [
     'createPickupRequest',

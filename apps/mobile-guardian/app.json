@@ -1,0 +1,84 @@
+{
+  "expo": {
+    "name": "HomeBell",
+    "slug": "homebell-guardian",
+    "version": "1.0.0",
+    "scheme": "homebell",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.neuxplus.homebell",
+      "supportsTablet": false,
+      "associatedDomains": ["applinks:homebell.app"],
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Your school can require you to be near the school before requesting pickup. HomeBell checks your location only when you tap Request pickup."
+      }
+    },
+    "android": {
+      "package": "com.neuxplus.homebell",
+      "adaptiveIcon": {
+        "backgroundColor": "#1F6FEB",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "POST_NOTIFICATIONS"],
+      "blockedPermissions": [
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_CONTACTS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "homebell.app",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#1F6FEB",
+          "defaultChannel": "pickup",
+          "enableRemoteNotifications": true
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Your school can require you to be near the school before requesting pickup. HomeBell checks your location only when you tap Request pickup."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiMode": "mock",
+      "apiBaseUrl": "https://api.homebell.app"
+    },
+    "platforms": ["ios", "android"]
+  }
+}

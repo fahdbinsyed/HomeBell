@@ -1,5 +1,5 @@
 BadRequest:
-  description: Validation failed (VALIDATION_FAILED) or malformed request (BAD_REQUEST).
+  description: Validation failed (VALIDATION_FAILED), malformed request (BAD_REQUEST) or missing X-Device-Id on guardian endpoints (DEVICE_ID_REQUIRED).
   content:
     application/problem+json:
       schema:

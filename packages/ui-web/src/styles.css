@@ -1,0 +1,27 @@
+/*
+ * Shared base styles. Apps import this after `@import "tailwindcss";` and add
+ * `@source` for this package so Tailwind generates the classes used by ui-web components.
+ */
+@import '@homebell/design-tokens/tokens.css';
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background: var(--hb-bg);
+    color: var(--hb-text);
+  }
+  :focus-visible {
+    outline-color: var(--hb-focus);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

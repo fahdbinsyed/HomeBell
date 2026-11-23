@@ -48,6 +48,18 @@ emulator; EAS project with `development` and `preview` profiles for both platfor
 - Loading/empty/error states and accessibility basics on every screen (web + both mobile platforms).
 - Does not claim server-side verification.
 
+**Status (2026-11-23)** — built; acceptance partially verified:
+
+| Item                                                                                                                                                                                                            | Status                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Mock layer: every contract operation (except 2 store webhooks) exercised; every response schema-validated                                                                                                       | Verified (`packages/mocks` tests)                                      |
+| Platform portal, School dashboard, Display: production builds; key flows clicked through in a browser (MFA sign-in, lifecycle reinstate, live queue + sent out, guardians, reports, display pairing + TV board) | Verified                                                               |
+| Guardian app: typecheck, jest-expo tests (data flow, platform adapters, a11y components), Metro production bundles for **Android and iOS**                                                                      | Verified                                                               |
+| Guardian app on a physical **Android** phone (Expo Go): OTP sign-in and invitation flows exercised manually by the product owner                                                                                | Verified (manual, 2026-11-23)                                          |
+| Guardian app on **iOS** (Simulator/iPhone); Maestro flows (`apps/mobile-guardian/e2e`) on both platforms                                                                                                        | **Not yet verified** — no Mac or iPhone available yet                  |
+| Web screen-level automated tests (beyond shared component tests)                                                                                                                                                | Not yet written                                                        |
+| Cross-app pairing / support hand-off in mock mode                                                                                                                                                               | Simulated (each app keeps its own mock data); real exchange in Phase 3 |
+
 ## Phase 2 — .NET backend core and multi-tenant foundation
 
 **Acceptance**: tenant resolution + scope enforcement on every tenant-owned resource; RBAC; auth/session

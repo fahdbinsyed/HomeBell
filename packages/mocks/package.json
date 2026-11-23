@@ -1,0 +1,31 @@
+{
+  "name": "@homebell/mocks",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser": "./src/browser.ts",
+    "./native": "./src/native.ts",
+    "./node": "./src/node.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@homebell/client-services": "workspace:*",
+    "@homebell/contracts": "workspace:*",
+    "msw": "3.0.7"
+  },
+  "devDependencies": {
+    "@homebell/config": "workspace:*",
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "26.6.6",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "js-yaml": "4.1.0",
+    "typescript": "5.9.3",
+    "vitest": "5.1.1"
+  }
+}

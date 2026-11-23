@@ -1,0 +1,45 @@
+# Transfer-or-buy on a new phone (business rule 3.3). Android + iOS.
+appId: com.neuxplus.homebell
+---
+- launchApp:
+    clearState: true
+# Transfer allowed
+- tapOn:
+    id: start-sign-in
+- tapOn:
+    id: phone-input
+- inputText: '+15550100006'
+- tapOn:
+    id: send-code
+- tapOn:
+    id: otp-input
+- inputText: '000000'
+- assertVisible:
+    id: device-conflict-screen
+- tapOn:
+    id: transfer-device
+- assertVisible:
+    id: terms-screen
+- tapOn:
+    id: accept-terms
+- assertVisible:
+    id: home-screen
+# Cooldown blocks a second move (different account)
+- tapOn: 'Account'
+- tapOn:
+    id: sign-out
+- tapOn:
+    id: start-sign-in
+- tapOn:
+    id: phone-input
+- inputText: '+15550100007'
+- tapOn:
+    id: send-code
+- tapOn:
+    id: otp-input
+- inputText: '000000'
+- assertVisible:
+    id: device-conflict-screen
+- assertVisible: 'Not available yet'
+- assertVisible:
+    id: buy-license

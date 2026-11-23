@@ -4,7 +4,7 @@
   "description": "HomeBell — multi-tenant school pickup and dismissal platform (Powered by neuXplus)",
   "packageManager": "pnpm@10.34.9",
   "engines": {
-    "node": ">=22.12.0",
+    "node": ">=22.13.0",
     "pnpm": ">=10.34.0"
   },
   "scripts": {

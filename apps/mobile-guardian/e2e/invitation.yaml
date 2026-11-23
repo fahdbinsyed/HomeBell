@@ -1,0 +1,34 @@
+# Additional guardian redeems an invitation (OTP only to the invited number). Android + iOS.
+# Deep-link variant: maestro openLink "homebell://invite/GRNFD7K2QX"
+appId: com.neuxplus.homebell
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: start-invite
+- tapOn:
+    id: invite-code-input
+- inputText: 'GRNFD7K2QX'
+- tapOn:
+    id: lookup-invite
+- assertVisible:
+    id: redeem-invite-screen
+- tapOn:
+    id: invite-phone
+- inputText: '+15550100099'
+- tapOn:
+    id: invite-send-code
+- assertVisible: "That number doesn't match the invitation."
+- tapOn:
+    id: invite-phone
+- eraseText
+- inputText: '+15550100010'
+- tapOn:
+    id: invite-send-code
+- tapOn:
+    id: invite-otp
+- inputText: '000000'
+- tapOn:
+    id: invite-redeem
+- assertVisible:
+    id: terms-screen

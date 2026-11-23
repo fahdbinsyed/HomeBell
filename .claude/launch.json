@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-school",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@homebell/web-school", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "web-platform",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@homebell/web-platform", "dev"],
+      "port": 3001
+    },
+    {
+      "name": "web-display",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@homebell/web-display", "dev"],
+      "port": 3002
+    }
+  ]
+}

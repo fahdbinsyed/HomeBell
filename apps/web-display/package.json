@@ -1,0 +1,45 @@
+{
+  "name": "@homebell/web-display",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3002",
+    "build": "next build",
+    "start": "next start --port 3002",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@homebell/api-client": "workspace:*",
+    "@homebell/client-services": "workspace:*",
+    "@homebell/contracts": "workspace:*",
+    "@homebell/copy": "workspace:*",
+    "@homebell/design-tokens": "workspace:*",
+    "@homebell/mocks": "workspace:*",
+    "@homebell/ui-web": "workspace:*",
+    "@homebell/web-core": "workspace:*",
+    "@tanstack/react-query": "5.108.3",
+    "idb-keyval": "6.3.0",
+    "qrcode": "1.5.4",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@homebell/config": "workspace:*",
+    "@tailwindcss/postcss": "4.3.5",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.13",
+    "@types/node": "26.6.6",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "jsdom": "31.0.1",
+    "tailwindcss": "4.3.5",
+    "typescript": "5.9.3",
+    "vitest": "5.1.1"
+  }
+}

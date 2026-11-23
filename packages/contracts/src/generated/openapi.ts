@@ -4315,7 +4315,7 @@ export interface components {
     VerificationMethod: 'none';
   };
   responses: {
-    /** @description Validation failed (VALIDATION_FAILED) or malformed request (BAD_REQUEST). */
+    /** @description Validation failed (VALIDATION_FAILED), malformed request (BAD_REQUEST) or missing X-Device-Id on guardian endpoints (DEVICE_ID_REQUIRED). */
     BadRequest: {
       headers: {
         [name: string]: unknown;
@@ -4791,6 +4791,15 @@ export interface operations {
         };
       };
       400: components['responses']['BadRequest'];
+      /** @description INVALID_CREDENTIALS — an existing account accepted with the wrong password. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
       410: components['responses']['Gone'];
     };
   };
@@ -5266,7 +5275,9 @@ export interface operations {
           'application/json': components['schemas']['ChildList'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   getMyDeviceStatus: {
@@ -5290,7 +5301,9 @@ export interface operations {
           'application/json': components['schemas']['DeviceStatus'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   createGuardianInvitation: {
@@ -5357,6 +5370,7 @@ export interface operations {
           'application/json': components['schemas']['AdditionalGuardianList'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
     };
@@ -5390,6 +5404,7 @@ export interface operations {
       };
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       422: components['responses']['Unprocessable'];
     };
@@ -5417,7 +5432,9 @@ export interface operations {
           'application/json': components['schemas']['GuardianInvitationCreated'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       /** @description Invitation already redeemed or revoked. */
       409: {
@@ -5454,7 +5471,9 @@ export interface operations {
           'application/json': components['schemas']['AdditionalGuardian'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
     };
@@ -5486,6 +5505,7 @@ export interface operations {
           'application/json': components['schemas']['PurchaseIntent'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       /** @description FEATURE_NOT_ENTITLED, TENANT_NOT_OPERATIONAL, FORBIDDEN (not primary). */
       403: {
@@ -5536,7 +5556,9 @@ export interface operations {
           'application/json': components['schemas']['PurchaseResult'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       /** @description PURCHASE_ALREADY_PROCESSED. */
       409: {
@@ -5590,6 +5612,7 @@ export interface operations {
           'application/json': components['schemas']['LicenseSeatList'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
     };
@@ -5620,7 +5643,9 @@ export interface operations {
           'application/json': components['schemas']['NotificationPage'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   markMyNotificationsRead: {
@@ -5642,6 +5667,7 @@ export interface operations {
       204: components['responses']['NoContent'];
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   listMyPickupRequests: {
@@ -5675,7 +5701,9 @@ export interface operations {
           'application/json': components['schemas']['GuardianPickupRequestPage'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   createPickupRequest: {
@@ -5760,7 +5788,9 @@ export interface operations {
           'application/json': components['schemas']['GuardianPickupRequest'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
     };
   };
@@ -5789,6 +5819,7 @@ export interface operations {
           'application/json': components['schemas']['GuardianPickupRequest'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
@@ -5830,7 +5861,9 @@ export interface operations {
           'application/json': components['schemas']['GuardianPickupRequest'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
     };
@@ -5856,7 +5889,9 @@ export interface operations {
           'application/json': components['schemas']['Me'];
         };
       };
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   updateMyProfile: {
@@ -5886,6 +5921,7 @@ export interface operations {
       };
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   registerPushToken: {
@@ -5907,6 +5943,7 @@ export interface operations {
       204: components['responses']['NoContent'];
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   removePushToken: {
@@ -5922,7 +5959,9 @@ export interface operations {
     requestBody?: never;
     responses: {
       204: components['responses']['NoContent'];
+      400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   acceptTerms: {
@@ -5944,6 +5983,7 @@ export interface operations {
       204: components['responses']['NoContent'];
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
     };
   };
   platformCreateCooldownOverride: {

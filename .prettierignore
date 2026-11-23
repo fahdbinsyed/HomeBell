@@ -7,3 +7,8 @@ coverage
 backend
 packages/contracts/bundled
 packages/contracts/src/generated
+.expo
+dist-check
+apps/mobile-guardian/android
+apps/mobile-guardian/ios
+next-env.d.ts
