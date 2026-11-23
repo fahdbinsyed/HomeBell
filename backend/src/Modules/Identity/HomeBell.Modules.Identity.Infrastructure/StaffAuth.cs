@@ -17,6 +17,9 @@ public sealed class StaffAuthOptions
     /// <summary>Base URL of the school web app, used in password-reset links.</summary>
     public string SchoolWebBaseUrl { get; set; } = "http://localhost:3000";
 
+    /// <summary>Base URL of the platform console, used in platform-user invitation links.</summary>
+    public string PlatformWebBaseUrl { get; set; } = "http://localhost:3001";
+
     public string TotpIssuer { get; set; } = "HomeBell";
 }
 

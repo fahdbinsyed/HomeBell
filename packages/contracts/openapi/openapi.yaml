@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HomeBell API
-  version: 1.1.0
+  version: 1.2.0
   summary: Multi-tenant school pickup and dismissal platform.
   description: |
     HomeBell API v1 — the single source of truth for frontend and backend (ADR-0004).
@@ -420,6 +420,10 @@ paths:
             application/problem+json:
               schema:
                 $ref: './components/common.yaml#/Problem'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
   /v1/auth/device-conflict/limited-session:
     post:
       tags: [Auth]
@@ -637,6 +641,8 @@ paths:
         '429':
           $ref: './components/responses.yaml#/TooManyRequests'
 
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
   # ───────────────────────────── Guardian self-service ─────────────────────────────
   /v1/me/profile:
     get:
@@ -862,6 +868,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: './components/common.yaml#/Problem'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
   /v1/me/pickup-requests/{requestId}/cancel:
     post:
       tags: [Guardian]
@@ -1065,6 +1073,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: './components/common.yaml#/Problem'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
   /v1/me/license-purchases/{intentId}/complete:
     post:
       tags: [GuardianLicensing]
@@ -1176,6 +1186,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: './components/common.yaml#/Problem'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
   /v1/me/guardians/{guardianId}:
     patch:
       tags: [GuardianLicensing]
@@ -1911,6 +1923,8 @@ paths:
               schema:
                 $ref: './components/common.yaml#/Problem'
 
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
   # ───────────────────────────── School: guardians ─────────────────────────────
   /v1/t/{tenantId}/guardians:
     get:
@@ -2289,6 +2303,8 @@ paths:
         '422':
           $ref: './components/responses.yaml#/Unprocessable'
 
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
   # ───────────────────────────── School: staff ─────────────────────────────
   /v1/t/{tenantId}/staff:
     get:
@@ -2558,6 +2574,10 @@ paths:
             application/problem+json:
               schema:
                 $ref: './components/common.yaml#/Problem'
+        '400':
+          $ref: './components/responses.yaml#/BadRequest'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
   /v1/t/{tenantId}/pickup-requests/sent-out:
     post:
       tags: [Queue]
@@ -2585,6 +2605,10 @@ paths:
           $ref: './components/responses.yaml#/Forbidden'
         '404':
           $ref: './components/responses.yaml#/NotFound'
+        '409':
+          $ref: './components/responses.yaml#/Conflict'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
   /v1/t/{tenantId}/pickup-requests/{requestId}/cancel:
     post:
       tags: [Queue]
@@ -3167,6 +3191,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: './components/common.yaml#/Problem'
+        '422':
+          $ref: './components/responses.yaml#/Unprocessable'
   /v1/platform/tenants/{tenantId}:
     parameters:
       - $ref: './components/parameters.yaml#/TenantId'

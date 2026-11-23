@@ -63,6 +63,9 @@ public sealed class IdentityModule : IModule
             return svc;
         });
         services.AddScoped<IUserAccounts, UserAccounts>();
+        services.AddScoped<IdentitySessionIssuer>();
+        services.AddScoped<ISessionIssuer>(sp => sp.GetRequiredService<IdentitySessionIssuer>());
+        services.AddScoped<IOtpUsage>(sp => sp.GetRequiredService<IdentitySessionIssuer>());
         services.AddSingleton<IEmailSender, SmtpEmailSender>();
         if (smtp.OtpDelivery == "smtp")
         {
@@ -76,6 +79,8 @@ public sealed class IdentityModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        PlatformUserEndpoints.Map(endpoints);
+
         var auth = endpoints.MapGroup("/v1/auth").RequireRateLimiting("auth");
 
         auth.MapPost("/staff/login", (StaffLoginRequest body, StaffAuthService svc, CancellationToken ct) => svc.LoginAsync(body, ct));

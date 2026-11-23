@@ -40,18 +40,29 @@ public sealed class DevSeeder(
         using var _ = tenant.CrossTenant("development seed");
         if (await identity.Users.AnyAsync(u => u.Email == "owner@homebell.test", ct))
         {
+            // Databases seeded before Phase 2b have no catalog yet.
+            if (!await platform.Plans.AnyAsync(ct))
+            {
+                SeedCatalog(clock.UtcNow);
+                await platform.SaveChangesAsync(ct);
+            }
+
             return;
         }
 
         var now = clock.UtcNow;
         var gf = new Tenant(Greenfield, "greenfield", "Greenfield Academy", "America/New_York", "US", "us-east", now);
-        gf.ApplyState(TenantLifecycleState.ActivePaid, now.AddYears(1));
+        gf.Initialize(TenantLifecycleState.ActivePaid, now.AddYears(1));
+        gf.SetContact("Grace Principal", "principal@greenfield.test", null, now);
         var rv = new Tenant(Riverside, "riverside", "Riverside Primary", "America/Chicago", "US", "us-east", now);
-        rv.ApplyState(TenantLifecycleState.Trial, now.AddDays(30));
+        rv.Initialize(TenantLifecycleState.Trial, now.AddDays(30));
+        rv.SetContact("Rita Head", "head@riverside.test", null, now);
         var hc = new Tenant(Hillcrest, "hillcrest", "Hillcrest School", "America/Denver", "US", "us-east", now);
-        hc.ApplyState(TenantLifecycleState.ActivePaid, now.AddYears(1));
-        hc.ApplyState(TenantLifecycleState.Suspended, null);
+        hc.Initialize(TenantLifecycleState.ActivePaid, now.AddYears(1));
+        hc.Transition(TenantLifecycleAction.Suspend, TenantLifecycleState.Suspended, null, now);
+        hc.SetContact("Hal Office", "office@hillcrest.test", null, now);
         platform.Tenants.AddRange(gf, rv, hc);
+        SeedCatalog(now);
         await platform.SaveChangesAsync(ct);
 
         var owner = Staff("Olivia Owner", "owner@homebell.test", now);
@@ -82,6 +93,37 @@ public sealed class DevSeeder(
             new Guardian(Guid.CreateVersion7(), Riverside, jordan.Id, GuardianKind.Primary, jordan.FullName, jordan.Phone!, now),
             blockedProfile);
         await guardians.SaveChangesAsync(ct);
+    }
+
+    public static readonly Guid StandardPlan = Guid.Parse("0193a000-0000-7000-8000-0000000000a1");
+    public static readonly Guid StandardV1 = Guid.Parse("0193a000-0000-7000-8000-0000000000a2");
+
+    /// <summary>Standard plan v1 (published) + feature flags for every feature key; Greenfield/Hillcrest subscribe.</summary>
+    private void SeedCatalog(DateTimeOffset now)
+    {
+        platform.Plans.Add(new SubscriptionPlan(StandardPlan, "standard", "Standard", "Everything a school needs for dismissal.", true, now));
+        var features = FeatureKey.All.ToDictionary(k => k, k => !k.StartsWith("audio.", StringComparison.Ordinal) && !k.StartsWith("qr.", StringComparison.Ordinal) && !k.StartsWith("campus.", StringComparison.Ordinal) && !k.StartsWith("sso.", StringComparison.Ordinal));
+        var limits = new Dictionary<string, int?>
+        {
+            [LimitKey.StudentsMax] = 2000,
+            [LimitKey.StaffMax] = 50,
+            [LimitKey.DisplaysMax] = 5,
+            [LimitKey.AdditionalGuardiansMaxPerStudent] = 3,
+            [LimitKey.OtpDailyBudget] = 2000,
+            [LimitKey.ImportsMaxRows] = 5000,
+        };
+        var v1 = new PlanVersion(StandardV1, StandardPlan, 1, 250_000, features, limits, now);
+        v1.Publish(now);
+        platform.PlanVersions.Add(v1);
+        foreach (var key in FeatureKey.All)
+        {
+            var future = key.StartsWith("audio.", StringComparison.Ordinal) || key.StartsWith("qr.", StringComparison.Ordinal) || key.StartsWith("campus.", StringComparison.Ordinal) || key.StartsWith("sso.", StringComparison.Ordinal);
+            platform.FeatureFlags.Add(new FeatureFlag(key, future ? "Future feature (reserved)" : $"Kill switch for {key}", !future, now));
+        }
+
+
+        platform.Subscriptions.Add(new TenantSubscription(Guid.CreateVersion7(), Greenfield, StandardV1, now, now.AddYears(1), "PO-1001", new ActorStamp(AuditActorType.System, null, "Seed"), now));
+        platform.Subscriptions.Add(new TenantSubscription(Guid.CreateVersion7(), Hillcrest, StandardV1, now, now.AddYears(1), "PO-1002", new ActorStamp(AuditActorType.System, null, "Seed"), now));
     }
 
     private UserAccount Staff(string name, string email, DateTimeOffset now)

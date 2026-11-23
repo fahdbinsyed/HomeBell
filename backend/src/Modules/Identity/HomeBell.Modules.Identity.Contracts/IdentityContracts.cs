@@ -21,3 +21,19 @@ public interface IUserAccounts
     /// <summary>Finds the account for this email or creates one (no password yet); returns its id.</summary>
     Task<Guid> EnsureByEmailAsync(string email, string fullName, CancellationToken cancellationToken);
 }
+
+public sealed record IssuedTokens(string AccessToken, DateTimeOffset AccessTokenExpiresAt, string RefreshToken, DateTimeOffset RefreshTokenExpiresAt, Guid SessionId, string Scope);
+
+/// <summary>Sessions other modules start or end (platform support sessions).</summary>
+public interface ISessionIssuer
+{
+    /// <summary>Read-only support session for one tenant, ending after <paramref name="minutes"/>.</summary>
+    Task<IssuedTokens> IssueSupportSessionAsync(Guid platformUserId, Guid tenantId, int minutes, CancellationToken cancellationToken);
+
+    Task RevokeSessionAsync(Guid sessionId, CancellationToken cancellationToken);
+}
+
+public interface IOtpUsage
+{
+    Task<int> SentTodayAsync(CancellationToken cancellationToken);
+}

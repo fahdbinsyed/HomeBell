@@ -14,3 +14,15 @@ public interface IGuardianProfileDirectory
     /// </summary>
     Task<IReadOnlyList<GuardianProfileInfo>> ActivatePendingAsync(Guid userId, CancellationToken cancellationToken);
 }
+
+public sealed record GuardianCounts(int PrimaryActive, int PrimaryPending, int AdditionalActive, int Blocked)
+{
+    public int Active => PrimaryActive + AdditionalActive;
+}
+
+public interface IGuardianStats
+{
+    Task<GuardianCounts> CountsAsync(Guid tenantId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyDictionary<Guid, int>> ActiveByTenantAsync(CancellationToken cancellationToken);
+}

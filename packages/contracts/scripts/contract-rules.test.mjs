@@ -88,6 +88,19 @@ test('retry-prone writes require Idempotency-Key', () => {
   }
 });
 
+test('idempotent operations document every idempotency outcome', () => {
+  // 400 IDEMPOTENCY_KEY_REQUIRED, 409 IDEMPOTENCY_IN_PROGRESS, 422 IDEMPOTENCY_KEY_REUSED (07-audit §3).
+  for (const { path, method, op, params } of operations()) {
+    if (!params.some((p) => p.name === 'Idempotency-Key' && p.in === 'header')) continue;
+    for (const status of ['400', '409', '422']) {
+      assert.ok(
+        op.responses[status],
+        `${method.toUpperCase()} ${path} takes Idempotency-Key but does not document ${status}`,
+      );
+    }
+  }
+});
+
 test('error responses use application/problem+json', () => {
   const responses = spec.components.responses ?? {};
   for (const { path, method, op } of operations()) {

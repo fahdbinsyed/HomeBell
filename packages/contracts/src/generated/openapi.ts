@@ -4513,6 +4513,7 @@ export interface operations {
           'application/json': components['schemas']['DeviceTransferResult'];
         };
       };
+      400: components['responses']['BadRequest'];
       /** @description DEVICE_CONFLICT_TOKEN_INVALID. */
       401: {
         headers: {
@@ -4531,6 +4532,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      422: components['responses']['Unprocessable'];
     };
   };
   logout: {
@@ -5203,6 +5205,7 @@ export interface operations {
       };
       400: components['responses']['BadRequest'];
       404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
       410: components['responses']['Gone'];
       422: components['responses']['Unprocessable'];
       429: components['responses']['TooManyRequests'];
@@ -5336,6 +5339,7 @@ export interface operations {
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
       /** @description NO_AVAILABLE_SEAT, SEAT_REASSIGNMENT_LIMIT, INVALID_VALIDITY_WINDOW, GUARDIAN_NOT_LINKED, ADDITIONAL_GUARDIAN_LIMIT_REACHED, GUARDIAN_PHONE_IN_USE. */
       422: {
         headers: {
@@ -5516,6 +5520,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      409: components['responses']['Conflict'];
       /** @description ADDITIONAL_GUARDIAN_LIMIT_REACHED. */
       422: {
         headers: {
@@ -5832,6 +5837,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      422: components['responses']['Unprocessable'];
     };
   };
   cancelMyPickupRequest: {
@@ -6440,6 +6446,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      422: components['responses']['Unprocessable'];
     };
   };
   platformGetTenant: {
@@ -7822,6 +7829,7 @@ export interface operations {
           'application/json': components['schemas']['ImportJob'];
         };
       };
+      400: components['responses']['BadRequest'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       /** @description IMPORT_NOT_VALIDATED or IMPORT_ALREADY_COMMITTED. */
@@ -7931,6 +7939,7 @@ export interface operations {
       400: components['responses']['BadRequest'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
       422: components['responses']['Unprocessable'];
     };
   };
@@ -8078,6 +8087,7 @@ export interface operations {
           'application/json': components['schemas']['QueueItem'];
         };
       };
+      400: components['responses']['BadRequest'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
       /** @description INVALID_PICKUP_TRANSITION, PICKUP_REQUEST_CLOSED or SENT_OUT_STEP_DISABLED. */
@@ -8089,6 +8099,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      422: components['responses']['Unprocessable'];
     };
   };
   markSentOutBulk: {
@@ -8122,6 +8133,8 @@ export interface operations {
       400: components['responses']['BadRequest'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
     };
   };
   getQueueSnapshot: {

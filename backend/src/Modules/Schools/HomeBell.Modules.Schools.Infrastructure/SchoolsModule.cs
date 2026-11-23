@@ -27,6 +27,9 @@ public sealed class SchoolsModule : IModule
         services.AddScoped<IMembershipDirectory, MembershipDirectory>();
         services.AddScoped<ITenantAccessResolver, StaffTenantAccessResolver>();
         services.AddScoped<TenantAccessHolder>();
+        services.AddScoped<ISchoolStats, SchoolStats>();
+        services.AddScoped<IStaffInvitations, StaffInvitations>();
+        services.AddSingleton(configuration.GetSection("Schools").Get<SchoolsOptions>() ?? new SchoolsOptions());
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -42,6 +45,8 @@ public sealed class SchoolsDbContext(DbContextOptions<SchoolsDbContext> options,
 
     public DbSet<TenantMembership> Memberships => Set<TenantMembership>();
 
+    public DbSet<StaffInvitation> StaffInvitations => Set<StaffInvitation>();
+
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<TenantMembership>(e =>
@@ -53,6 +58,19 @@ public sealed class SchoolsDbContext(DbContextOptions<SchoolsDbContext> options,
             e.Property(x => x.Role).HasMaxLength(32);
             e.Property(x => x.State).HasMaxLength(16);
             e.Property<uint>("xmin").IsRowVersion();
+        });
+        modelBuilder.Entity<StaffInvitation>(e =>
+        {
+            e.ToTable("staff_invitation");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => new { x.TenantId, x.Email });
+            e.Property(x => x.Email).HasMaxLength(254);
+            e.Property(x => x.FullName).HasMaxLength(120);
+            e.Property(x => x.Role).HasMaxLength(32);
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.Property(x => x.State).HasMaxLength(16);
+            e.Property(x => x.InvitedByName).HasMaxLength(120);
         });
     }
 }

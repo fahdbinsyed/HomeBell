@@ -4,5 +4,6 @@
     <ProjectReference Include="../HomeBell.Modules.Schools.Contracts/HomeBell.Modules.Schools.Contracts.csproj" />
     <ProjectReference Include="../../../BuildingBlocks/HomeBell.BuildingBlocks.Application/HomeBell.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="../../Platform/HomeBell.Modules.Platform.Contracts/HomeBell.Modules.Platform.Contracts.csproj" />
+    <ProjectReference Include="../../Identity/HomeBell.Modules.Identity.Contracts/HomeBell.Modules.Identity.Contracts.csproj" />
   </ItemGroup>
 </Project>

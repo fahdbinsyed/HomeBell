@@ -23,6 +23,7 @@ public sealed class GuardiansModule : IModule
     {
         services.AddModuleDbContext<GuardiansDbContext>(Schema, (o, d) => new GuardiansDbContext(o, d));
         services.AddScoped<IGuardianProfileDirectory, GuardianProfileDirectory>();
+        services.AddScoped<IGuardianStats, GuardianStats>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -89,6 +90,34 @@ internal sealed class GuardianProfileDirectory(GuardiansDbContext db, ITenantCon
 
         await db.SaveChangesAsync(cancellationToken);
         return pending.Select(g => new GuardianProfileInfo(g.Id, g.TenantId, g.UserId, g.Kind, g.State, g.ValidUntil)).ToList();
+    }
+}
+
+internal sealed class GuardianStats(GuardiansDbContext db, ITenantContext tenant) : IGuardianStats
+{
+    public async Task<GuardianCounts> CountsAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        using var _ = tenant.Scope(tenantId);
+        var rows = await db.Guardians.AsNoTracking()
+            .GroupBy(g => new { g.Kind, g.State })
+            .Select(g => new { g.Key.Kind, g.Key.State, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        int Count(Func<string, string, bool> match) => rows.Where(r => match(r.Kind, r.State)).Sum(r => r.Count);
+        return new GuardianCounts(
+            Count((k, s) => k == GuardianKind.Primary && s == GuardianState.Active),
+            Count((k, s) => k == GuardianKind.Primary && s == GuardianState.PendingActivation),
+            Count((k, s) => k == GuardianKind.Additional && s == GuardianState.Active),
+            Count((_, s) => s == GuardianState.Blocked));
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, int>> ActiveByTenantAsync(CancellationToken cancellationToken)
+    {
+        using var _ = tenant.CrossTenant("platform tenant list: active guardian counts");
+        return await db.Guardians.AsNoTracking()
+            .Where(g => g.State == GuardianState.Active)
+            .GroupBy(g => g.TenantId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
     }
 }
 

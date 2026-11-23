@@ -3,6 +3,13 @@
 Versioning follows ADR-0004: additive changes bump the minor `info.version` within `/v1`; breaking
 changes need an ADR and a `/v2` path for the affected resources.
 
+## 1.2.0 — 2026-11-23 (additive)
+
+- Every operation that takes `Idempotency-Key` now documents all three idempotency outcomes: `400`
+  (`IDEMPOTENCY_KEY_REQUIRED`), `409` (`IDEMPOTENCY_IN_PROGRESS`) and `422` (`IDEMPOTENCY_KEY_REUSED`).
+  Ten operations were missing one or two of them (e.g. `POST /v1/platform/tenants` lacked `422`).
+  Found by the backend's contract-conformance tests (Phase 2b). Enforced by a contract rule test.
+
 ## 1.1.0 — 2026-11-23 (additive)
 
 - Every `/v1/me/**` guardian operation now documents `400` (`DEVICE_ID_REQUIRED`, `VALIDATION_FAILED`)

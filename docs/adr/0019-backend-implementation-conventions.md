@@ -51,6 +51,14 @@ implementation choices affect every module and are recorded here so later slices
    the familiar `WriteLine(level, id, plainText, sensitiveData)` API. Sensitive data is always masked
    (`SensitiveData.Mask`/`Scrub`); the database audit log stays the authoritative audit record.
 
+10. **Idempotency records** live in Redis for 24 h (AOF persistence on), keyed by operation scope + caller +
+    key, with the request hash. Same key + same body replays the stored response (`Idempotent-Replayed:
+true`); a different body is `422 IDEMPOTENCY_KEY_REUSED`; a request still running is `409
+IDEMPOTENCY_IN_PROGRESS`. Errors and 5xx responses are not stored, so a retry re-executes. A durable
+    PostgreSQL copy (07-audit-outbox-workers §3) is added before multi-region deployment.
+11. **Pagination cursors** are opaque; today they encode an offset. Clients must treat them as opaque so a
+    later move to keyset cursors needs no contract change.
+
 ## Consequences
 
 - New modules follow the same pattern: `AddModuleDbContext`, tenant-owned entities implement

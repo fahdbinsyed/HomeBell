@@ -20,6 +20,9 @@ public sealed class Tenant : AggregateRoot
         CountryCode = countryCode;
         Region = region;
         CreatedAt = createdAt;
+        UpdatedAt = createdAt;
+        TermStart = DateOnly.FromDateTime(createdAt.UtcDateTime);
+        TermEnd = TermStart.AddYears(1);
         State = TenantLifecycleState.Draft;
     }
 
@@ -27,7 +30,7 @@ public sealed class Tenant : AggregateRoot
 
     public string Name { get; private set; } = string.Empty;
 
-    public string? LegalName { get; set; }
+    public string? LegalName { get; private set; }
 
     public string Region { get; private set; } = string.Empty;
 
@@ -46,27 +49,79 @@ public sealed class Tenant : AggregateRoot
 
     public string? PlacementKey { get; private set; }
 
-    public DateOnly? TermStart { get; set; }
+    public DateOnly TermStart { get; private set; }
 
-    public DateOnly? TermEnd { get; set; }
+    public DateOnly TermEnd { get; private set; }
+
+    public string ContactName { get; private set; } = string.Empty;
+
+    public string ContactEmail { get; private set; } = string.Empty;
+
+    public string? ContactPhone { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
 
+    /// <summary>Drives the ETag / If-Match check on PATCH.</summary>
+    public DateTimeOffset UpdatedAt { get; private set; }
+
+    public DateTimeOffset? LastActivityAt { get; set; }
+
     public string OperationalMode => TenantLifecycle.OperationalModeOf(State);
 
-    /// <summary>Applies a validated lifecycle transition (rules in <see cref="TenantLifecycle"/>).</summary>
-    public void ApplyState(string newState, DateTimeOffset? expiresAt)
+    public void Update(string? name, string? legalName, bool setLegalName, string? timezone, DateOnly? termStart, DateOnly? termEnd, DateTimeOffset at)
     {
-        if (TenantLifecycle.IsOperational(State))
+        Name = name ?? Name;
+        LegalName = setLegalName ? legalName : LegalName;
+        Timezone = timezone ?? Timezone;
+        TermStart = termStart ?? TermStart;
+        TermEnd = termEnd ?? TermEnd;
+        UpdatedAt = at;
+    }
+
+    public void SetContact(string fullName, string email, string? phone, DateTimeOffset at)
+    {
+        ContactName = fullName;
+        ContactEmail = email;
+        ContactPhone = phone;
+        UpdatedAt = at;
+    }
+
+    public void SetLegalName(string? legalName) => LegalName = legalName;
+
+    /// <summary>Applies a transition validated by <see cref="LifecycleRules"/>.</summary>
+    public void Transition(string action, string newState, DateTimeOffset? expiresAt, DateTimeOffset at)
+    {
+        if (LifecycleRules.RemembersPrevious(action) && TenantLifecycle.IsOperational(State))
         {
             PreviousOperationalState = State;
         }
 
         State = newState;
+        if (expiresAt is not null)
+        {
+            ExpiresAt = expiresAt;
+        }
+        else if (action == TenantLifecycleAction.GrantFree)
+        {
+            ExpiresAt = null;
+        }
+
+        UpdatedAt = at;
+    }
+
+    /// <summary>Initial state at creation (draft, trial or pilot_free).</summary>
+    public void Initialize(string state, DateTimeOffset? expiresAt)
+    {
+        State = state;
         ExpiresAt = expiresAt;
     }
 
-    public void Rename(string name) => Name = name;
+    /// <summary>System expiry sweep (worker, Phase 7).</summary>
+    public void Expire(DateTimeOffset at)
+    {
+        State = TenantLifecycleState.Expired;
+        UpdatedAt = at;
+    }
 }
 
 /// <summary>Lifecycle → operational mode (docs/architecture/05-entitlements-lifecycle.md §4).</summary>

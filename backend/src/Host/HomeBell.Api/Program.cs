@@ -41,6 +41,7 @@ app.UseContractProblems();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseIdempotency();
 app.Use(async (http, next) =>
 {
     await next(http);

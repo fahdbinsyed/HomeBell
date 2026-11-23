@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HomeBell API
-  version: 1.1.0
+  version: 1.2.0
   summary: Multi-tenant school pickup and dismissal platform.
   description: |
     HomeBell API v1 — the single source of truth for frontend and backend (ADR-0004).
@@ -419,6 +419,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeviceTransferResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           description: DEVICE_CONFLICT_TOKEN_INVALID.
           content:
@@ -431,6 +433,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
   /v1/auth/device-conflict/limited-session:
     post:
       tags:
@@ -647,6 +651,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '410':
           $ref: '#/components/responses/Gone'
         '422':
@@ -885,6 +891,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
   /v1/me/pickup-requests/{requestId}/cancel:
     post:
       tags:
@@ -1088,6 +1096,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           description: ADDITIONAL_GUARDIAN_LIMIT_REACHED.
           content:
@@ -1202,6 +1212,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           description: NO_AVAILABLE_SEAT, SEAT_REASSIGNMENT_LIMIT, INVALID_VALIDITY_WINDOW, GUARDIAN_NOT_LINKED, ADDITIONAL_GUARDIAN_LIMIT_REACHED, GUARDIAN_PHONE_IN_USE.
           content:
@@ -1948,6 +1960,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -2352,6 +2366,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/Unprocessable'
   /v1/t/{tenantId}/staff:
@@ -2620,6 +2636,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QueueItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -2630,6 +2648,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
   /v1/t/{tenantId}/pickup-requests/sent-out:
     post:
       tags:
@@ -2658,6 +2678,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
   /v1/t/{tenantId}/pickup-requests/{requestId}/cancel:
     post:
       tags:
@@ -3255,6 +3279,8 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problem'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
   /v1/platform/tenants/{tenantId}:
     parameters:
       - $ref: '#/components/parameters/TenantId'
@@ -9188,14 +9214,14 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
-    Forbidden:
-      description: FORBIDDEN, SCOPE_INSUFFICIENT, FEATURE_NOT_ENTITLED, TENANT_NOT_OPERATIONAL, TENANT_READ_ONLY.
+    Conflict:
+      description: State conflict; see `code` (e.g. DUPLICATE_ACTIVE_REQUEST, INVALID_PICKUP_TRANSITION, IDEMPOTENCY_IN_PROGRESS).
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
-    Conflict:
-      description: State conflict; see `code` (e.g. DUPLICATE_ACTIVE_REQUEST, INVALID_PICKUP_TRANSITION, IDEMPOTENCY_IN_PROGRESS).
+    Forbidden:
+      description: FORBIDDEN, SCOPE_INSUFFICIENT, FEATURE_NOT_ENTITLED, TENANT_NOT_OPERATIONAL, TENANT_READ_ONLY.
       content:
         application/problem+json:
           schema:
