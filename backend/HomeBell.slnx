@@ -66,5 +66,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/HomeBell.ArchitectureTests/HomeBell.ArchitectureTests.csproj" />
+    <Project Path="tests/HomeBell.IntegrationTests/HomeBell.IntegrationTests.csproj" />
   </Folder>
 </Solution>

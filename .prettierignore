@@ -12,3 +12,4 @@ dist-check
 apps/mobile-guardian/android
 apps/mobile-guardian/ios
 next-env.d.ts
+apps/mobile-guardian/expo-env.d.ts

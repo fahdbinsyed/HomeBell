@@ -23,3 +23,4 @@ A contract change that is not purely additive **must** have an ADR.
 | [0016](0016-web-bff-authentication.md)             | Backend-for-frontend authentication for web apps                             | Accepted                              |
 | [0017](0017-mobile-platform-strategy.md)           | Mobile platform strategy — Android and iOS in the MVP                        | Accepted                              |
 | [0018](0018-mock-transport.md)                     | Mock transport — MSW handlers behind an injected fetch                       | Accepted                              |
+| [0019](0019-backend-implementation-conventions.md) | Backend implementation conventions (generated constants, UoW, RLS, logging)  | Accepted                              |

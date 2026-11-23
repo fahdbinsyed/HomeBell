@@ -19,3 +19,8 @@ dotnet_diagnostic.CA2007.severity = none
 
 [*.md]
 trim_trailing_whitespace = false
+
+# EF Core migrations are generated code (dotnet ef migrations add); style rules do not apply.
+[backend/src/**/Migrations/*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none

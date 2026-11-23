@@ -6,4 +6,8 @@
     <ProjectReference Include="../HomeBell.Modules.Identity.Application/HomeBell.Modules.Identity.Application.csproj" />
     <ProjectReference Include="../../../BuildingBlocks/HomeBell.BuildingBlocks.Infrastructure/HomeBell.BuildingBlocks.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+    <PackageReference Include="Otp.NET" />
+  </ItemGroup>
 </Project>

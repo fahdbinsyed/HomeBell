@@ -6,4 +6,7 @@
     <ProjectReference Include="../HomeBell.Modules.Audit.Application/HomeBell.Modules.Audit.Application.csproj" />
     <ProjectReference Include="../../../BuildingBlocks/HomeBell.BuildingBlocks.Infrastructure/HomeBell.BuildingBlocks.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
 </Project>

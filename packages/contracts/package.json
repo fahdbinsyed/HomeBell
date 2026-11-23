@@ -12,8 +12,8 @@
   "scripts": {
     "bundle": "redocly bundle homebell@v1 --output bundled/openapi.v1.yaml",
     "lint": "redocly lint homebell@v1 && node scripts/validate-realtime.mjs",
-    "generate": "pnpm run bundle && openapi-typescript --enum-values --alphabetize && node scripts/generate.mjs && prettier --write src/generated ERROR_CODES.md",
-    "check": "pnpm run generate && git diff --exit-code -- bundled src/generated ERROR_CODES.md",
+    "generate": "pnpm run bundle && openapi-typescript --enum-values --alphabetize && node scripts/generate.mjs && node scripts/generate-dotnet.mjs && prettier --write src/generated ERROR_CODES.md",
+    "check": "pnpm run generate && git diff --exit-code -- bundled src/generated ERROR_CODES.md ../../backend/src/BuildingBlocks/HomeBell.BuildingBlocks.Domain/Contract",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --test scripts/*.test.mjs"
   },
