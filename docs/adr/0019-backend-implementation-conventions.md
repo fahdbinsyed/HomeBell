@@ -59,6 +59,13 @@ IDEMPOTENCY_IN_PROGRESS`. Errors and 5xx responses are not stored, so a retry re
 11. **Pagination cursors** are opaque; today they encode an offset. Clients must treat them as opaque so a
     later move to keyset cursors needs no contract change.
 
+12. **School-local time** uses NodaTime's embedded IANA database (`TenantTime`), not OS time-zone data: with
+    `InvariantGlobalization` on Windows, .NET cannot resolve IANA ids such as `America/New_York`. Dismissal
+    windows, "today" and day boundaries therefore behave the same on developer machines and Linux servers.
+13. **Guardian device binding**: every `/v1/me/**` endpoint requires `X-Device-Id` equal to the session's
+    device (`DEVICE_ID_REQUIRED` / `DEVICE_MISMATCH`), so a copied access token does not work from another
+    install.
+
 ## Consequences
 
 - New modules follow the same pattern: `AddModuleDbContext`, tenant-owned entities implement

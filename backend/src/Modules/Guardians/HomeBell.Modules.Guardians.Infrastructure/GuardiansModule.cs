@@ -30,7 +30,11 @@ public sealed class GuardiansModule : IModule
         services.AddScoped<GuardianViews>();
     }
 
-    public void MapEndpoints(IEndpointRouteBuilder endpoints) => GuardianEndpoints.Map(endpoints);
+    public void MapEndpoints(IEndpointRouteBuilder endpoints)
+    {
+        GuardianEndpoints.Map(endpoints);
+        MeEndpoints.Map(endpoints);
+    }
 }
 
 public sealed class GuardiansDbContext(DbContextOptions<GuardiansDbContext> options, ModuleDbDependencies? deps) : ModuleDbContext(options, deps)

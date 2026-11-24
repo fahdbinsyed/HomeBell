@@ -48,6 +48,34 @@ public static class EndpointAuthorization
         return builder;
     }
 
+    /// <summary>
+    /// Guardian (`/v1/me/**`) endpoints: a guardian session whose device binding matches `X-Device-Id`
+    /// (03-identity §4; stolen tokens do not work from another install). Missing header → 400
+    /// DEVICE_ID_REQUIRED; different install → 401 DEVICE_MISMATCH.
+    /// </summary>
+    public static TBuilder RequireGuardian<TBuilder>(this TBuilder builder, string[]? scopes = null)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        builder.RequireSession([SessionKind.Guardian], scopes ?? [SessionScope.Full]);
+        builder.AddEndpointFilter(async (ctx, next) =>
+        {
+            var header = ctx.HttpContext.Request.Headers["X-Device-Id"].ToString();
+            if (!Guid.TryParse(header, out var device))
+            {
+                throw Problem.Of(ErrorCodes.DeviceIdRequired);
+            }
+
+            var actor = ctx.HttpContext.RequestServices.GetRequiredService<ICurrentActor>();
+            if (actor.DeviceId != device)
+            {
+                throw Problem.Of(ErrorCodes.DeviceMismatch);
+            }
+
+            return await next(ctx);
+        });
+        return builder;
+    }
+
     /// <summary>Platform-plane permission check (platform session + role → permission).</summary>
     public static TBuilder RequirePlatformPermission<TBuilder>(this TBuilder builder, string permission)
         where TBuilder : IEndpointConventionBuilder

@@ -284,21 +284,7 @@ internal static partial class SchoolEndpoints
             counts.Where(x => x.ClassId == c.Id).Sum(x => x.Count))).ToList();
     }
 
-    internal static DateOnly TodayIn(string? timezone, DateTimeOffset now)
-    {
-        try
-        {
-            if (timezone is not null && TimeZoneInfo.TryFindSystemTimeZoneById(timezone, out var tz))
-            {
-                return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, tz).DateTime);
-            }
-        }
-        catch (TimeZoneNotFoundException)
-        {
-        }
-
-        return DateOnly.FromDateTime(now.UtcDateTime);
-    }
+    internal static DateOnly TodayIn(string? timezone, DateTimeOffset now) => TenantTime.Today(timezone, now);
 
     private static EffectiveLimitDto Limit(EffectiveLimitInfo l) => new(l.Key, l.Value, l.Used, l.Source, l.OverrideId, l.ExpiresAt);
 

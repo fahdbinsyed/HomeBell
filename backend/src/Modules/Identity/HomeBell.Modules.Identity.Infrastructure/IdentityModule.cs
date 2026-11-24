@@ -82,6 +82,7 @@ public sealed class IdentityModule : IModule
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
         PlatformUserEndpoints.Map(endpoints);
+        GuardianMeEndpoints.Map(endpoints);
 
         var auth = endpoints.MapGroup("/v1/auth").RequireRateLimiting("auth");
 

@@ -34,6 +34,7 @@ public sealed class SchoolsModule : IModule
         services.AddScoped<IStudentDirectory, StudentDirectory>();
         services.AddScoped<IStaffInvitationRedemption, StaffInvitationRedemption>();
         services.AddScoped<StudentViews>();
+        services.AddScoped<ISchoolSettingsReader, SchoolSettingsReader>();
         services.AddSingleton(configuration.GetSection("Schools").Get<SchoolsOptions>() ?? new SchoolsOptions());
     }
 
@@ -211,9 +212,12 @@ internal sealed class StudentDirectory(SchoolsDbContext db, ITenantContext tenan
         var rows = await (from s in db.Students.AsNoTracking()
                           where studentIds.Contains(s.Id)
                           join c in db.Classes.AsNoTracking() on s.ClassId equals c.Id
-                          select new { s.Id, s.FirstName, s.PreferredName, s.LastName, s.ClassId, ClassName = c.Name, s.Status, s.DismissalEligibility })
+                          join sec in db.Sections.AsNoTracking() on s.SectionId equals sec.Id into secs
+                          from sec in secs.DefaultIfEmpty()
+                          select new { s.Id, s.FirstName, s.PreferredName, s.LastName, s.ClassId, ClassName = c.Name, SectionName = sec == null ? null : sec.Name, s.Status, s.DismissalEligibility })
             .ToListAsync(cancellationToken);
-        return rows.ToDictionary(r => r.Id, r => new StudentRef(r.Id, $"{r.PreferredName ?? r.FirstName} {r.LastName}", r.ClassId, r.ClassName, r.Status, r.DismissalEligibility));
+        return rows.ToDictionary(r => r.Id, r => new StudentRef(r.Id, $"{r.PreferredName ?? r.FirstName} {r.LastName}", r.ClassId, r.ClassName, r.Status, r.DismissalEligibility,
+            r.FirstName, r.LastName, r.PreferredName, r.SectionName));
     }
 }
 

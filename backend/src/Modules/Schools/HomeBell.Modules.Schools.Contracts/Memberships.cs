@@ -33,7 +33,8 @@ public interface IStaffInvitations
     Task<StaffInvitationInfo> InviteAsync(Guid tenantId, string email, string fullName, string role, CancellationToken cancellationToken);
 }
 
-public sealed record StudentRef(Guid Id, string FullName, Guid ClassId, string ClassName, string Status, string DismissalEligibility);
+public sealed record StudentRef(Guid Id, string FullName, Guid ClassId, string ClassName, string Status, string DismissalEligibility,
+    string FirstName = "", string LastName = "", string? PreferredName = null, string? SectionName = null);
 
 /// <summary>Student names/classes for other modules (guardian views, later pickups).</summary>
 public interface IStudentDirectory
@@ -51,4 +52,14 @@ public interface IStaffInvitationRedemption
 
     /// <summary>Creates (or reactivates) the membership and marks the invitation redeemed, in the caller's unit of work.</summary>
     Task RedeemAsync(Guid invitationId, Guid userId, CancellationToken cancellationToken);
+}
+
+public sealed record DismissalWindowInfo(int IsoDayOfWeek, TimeOnly OpensAt, TimeOnly ClosesAt);
+
+/// <summary>The parts of TenantSettings other modules act on (pickup eligibility, branding in the guardian app).</summary>
+public sealed record SchoolSettingsInfo(IReadOnlyList<DismissalWindowInfo> Windows, bool LocationRuleEnabled, string? LogoUrl, string? PrimaryColor);
+
+public interface ISchoolSettingsReader
+{
+    Task<SchoolSettingsInfo> GetAsync(Guid tenantId, CancellationToken cancellationToken);
 }

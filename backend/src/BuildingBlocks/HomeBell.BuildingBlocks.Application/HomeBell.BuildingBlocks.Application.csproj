@@ -2,4 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../HomeBell.BuildingBlocks.Domain/HomeBell.BuildingBlocks.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NodaTime" />
+  </ItemGroup>
 </Project>
