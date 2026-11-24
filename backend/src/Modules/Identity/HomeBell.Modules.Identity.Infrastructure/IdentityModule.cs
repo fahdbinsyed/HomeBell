@@ -55,6 +55,8 @@ public sealed class IdentityModule : IModule
         services.AddScoped<SessionService>();
         services.AddScoped<MeBuilder>();
         services.AddScoped<StaffAuthService>();
+        services.AddScoped<StaffInvitationAuth>();
+        services.AddScoped<IUserDirectory, UserDirectory>();
         var fixedCode = configuration["Otp:DevelopmentFixedCode"];
         services.AddScoped(sp =>
         {
@@ -87,6 +89,8 @@ public sealed class IdentityModule : IModule
         auth.MapPost("/staff/mfa/verify", (MfaVerifyRequest body, StaffAuthService svc, CancellationToken ct) => svc.VerifyMfaAsync(body, ct));
         auth.MapPost("/staff/mfa/enroll", (MfaEnrollStartRequest body, StaffAuthService svc, CancellationToken ct) => svc.StartEnrollmentAsync(body, ct));
         auth.MapPost("/staff/mfa/enroll/confirm", (MfaEnrollConfirmRequest body, StaffAuthService svc, CancellationToken ct) => svc.ConfirmEnrollmentAsync(body, ct));
+        auth.MapPost("/staff/invitations/preview", (InvitationTokenRequest body, StaffInvitationAuth svc, CancellationToken ct) => svc.PreviewAsync(body, ct));
+        auth.MapPost("/staff/invitations/accept", (StaffInvitationAcceptRequest body, StaffInvitationAuth svc, CancellationToken ct) => svc.AcceptAsync(body, ct));
         auth.MapPost("/staff/password/forgot", async (PasswordForgotRequest body, StaffAuthService svc, CancellationToken ct) =>
         {
             await svc.ForgotPasswordAsync(body, ct);
@@ -195,7 +199,9 @@ internal sealed class MailpitOtpSender(IEmailSender email) : IOtpSender
 {
     public Task SendAsync(string phoneE164, string code, string purpose, CancellationToken cancellationToken) =>
         email.SendAsync($"sms+{phoneE164.TrimStart('+')}@sms.homebell.test", $"SMS to {phoneE164}",
-            $"HomeBell code: {code}. It expires in 5 minutes. Never share this code.", cancellationToken);
+            purpose == "welcome"
+                ? $"{code} registered this number for school pickup on HomeBell. Install the HomeBell app and sign in with this phone number."
+                : $"HomeBell code: {code}. It expires in 5 minutes. Never share this code.", cancellationToken);
 }
 
 /// <summary>Until an SMS provider is chosen (Phase 3 decision), production OTP sends fail closed.</summary>

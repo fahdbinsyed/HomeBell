@@ -4,6 +4,7 @@ using HomeBell.BuildingBlocks.Infrastructure;
 using HomeBell.BuildingBlocks.Infrastructure.Persistence;
 using HomeBell.Modules.Guardians.Contracts;
 using HomeBell.Modules.Guardians.Domain;
+using HomeBell.Modules.Identity.Contracts;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -24,11 +25,12 @@ public sealed class GuardiansModule : IModule
         services.AddModuleDbContext<GuardiansDbContext>(Schema, (o, d) => new GuardiansDbContext(o, d));
         services.AddScoped<IGuardianProfileDirectory, GuardianProfileDirectory>();
         services.AddScoped<IGuardianStats, GuardianStats>();
+        services.AddScoped<GuardianLinks>();
+        services.AddScoped<IGuardianLinks>(sp => sp.GetRequiredService<GuardianLinks>());
+        services.AddScoped<GuardianViews>();
     }
 
-    public void MapEndpoints(IEndpointRouteBuilder endpoints)
-    {
-    }
+    public void MapEndpoints(IEndpointRouteBuilder endpoints) => GuardianEndpoints.Map(endpoints);
 }
 
 public sealed class GuardiansDbContext(DbContextOptions<GuardiansDbContext> options, ModuleDbDependencies? deps) : ModuleDbContext(options, deps)
@@ -38,6 +40,8 @@ public sealed class GuardiansDbContext(DbContextOptions<GuardiansDbContext> opti
     public override string Schema => SchemaName;
 
     public DbSet<Guardian> Guardians => Set<Guardian>();
+
+    public DbSet<GuardianStudentLink> Links => Set<GuardianStudentLink>();
 
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -52,9 +56,20 @@ public sealed class GuardiansDbContext(DbContextOptions<GuardiansDbContext> opti
             e.Property(x => x.State).HasMaxLength(24);
             e.Property(x => x.FullName).HasMaxLength(120);
             e.Property(x => x.Phone).HasMaxLength(16);
-            e.Property(x => x.BlockedReason).HasMaxLength(500);
+            e.Property(x => x.StateReason).HasMaxLength(500);
             e.Ignore(x => x.ActivatesOnLogin);
+            e.Ignore(x => x.BlockedReason);
             e.Property<uint>("xmin").IsRowVersion();
+        });
+        modelBuilder.Entity<GuardianStudentLink>(e =>
+        {
+            e.ToTable("guardian_student_link");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.StudentId });
+            e.HasIndex(x => new { x.TenantId, x.GuardianId });
+            // At most one active primary guardian per student.
+            e.HasIndex(x => new { x.TenantId, x.StudentId }, "ux_link_one_primary").IsUnique().HasFilter("is_primary AND removed_at IS NULL");
+            e.Property(x => x.Relationship).HasMaxLength(24);
         });
     }
 }
@@ -107,7 +122,8 @@ internal sealed class GuardianStats(GuardiansDbContext db, ITenantContext tenant
             Count((k, s) => k == GuardianKind.Primary && s == GuardianState.Active),
             Count((k, s) => k == GuardianKind.Primary && s == GuardianState.PendingActivation),
             Count((k, s) => k == GuardianKind.Additional && s == GuardianState.Active),
-            Count((_, s) => s == GuardianState.Blocked));
+            Count((_, s) => s == GuardianState.Blocked),
+            Count((_, s) => s == GuardianState.Deactivated));
     }
 
     public async Task<IReadOnlyDictionary<Guid, int>> ActiveByTenantAsync(CancellationToken cancellationToken)
@@ -118,6 +134,90 @@ internal sealed class GuardianStats(GuardiansDbContext db, ITenantContext tenant
             .GroupBy(g => g.TenantId)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
+    }
+}
+
+internal sealed class GuardianLinks(GuardiansDbContext db, ITenantContext tenant, IUserAccounts accounts, IAuditWriter audit, IClock clock) : IGuardianLinks
+{
+    public async Task<IReadOnlyDictionary<Guid, StudentGuardians>> ForStudentsAsync(Guid tenantId, IReadOnlyCollection<Guid> studentIds, CancellationToken cancellationToken)
+    {
+        using var _ = tenant.Scope(tenantId);
+        var rows = await (from l in db.Links.AsNoTracking()
+                          where studentIds.Contains(l.StudentId) && l.RemovedAt == null
+                          join g in db.Guardians.AsNoTracking() on l.GuardianId equals g.Id
+                          select new { l.StudentId, Info = new GuardianLinkSummaryInfo(g.Id, g.FullName, g.Phone, g.Kind, g.State, l.Relationship, l.IsPrimary) })
+            .ToListAsync(cancellationToken);
+        return rows.GroupBy(r => r.StudentId).ToDictionary(
+            gr => gr.Key,
+            gr => new StudentGuardians(gr.Select(x => x.Info).FirstOrDefault(i => i.IsPrimary), gr.Count()));
+    }
+
+    public async Task<IReadOnlyList<GuardianLinkSummaryInfo>> ForStudentAsync(Guid tenantId, Guid studentId, CancellationToken cancellationToken)
+    {
+        using var _ = tenant.Scope(tenantId);
+        return await (from l in db.Links.AsNoTracking()
+                      where l.StudentId == studentId && l.RemovedAt == null
+                      join g in db.Guardians.AsNoTracking() on l.GuardianId equals g.Id
+                      orderby l.IsPrimary descending, g.FullName
+                      select new GuardianLinkSummaryInfo(g.Id, g.FullName, g.Phone, g.Kind, g.State, l.Relationship, l.IsPrimary))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> LinkPrimaryAsync(Guid tenantId, Guid studentId, string fullName, string phone, string relationship, CancellationToken cancellationToken)
+    {
+        using var _ = tenant.Scope(tenantId);
+        if (await db.Links.AnyAsync(l => l.StudentId == studentId && l.IsPrimary && l.RemovedAt == null, cancellationToken))
+        {
+            throw Problem.Of(ErrorCodes.PrimaryGuardianExists);
+        }
+
+        var (guardian, created) = await EnsurePrimaryAsync(tenantId, fullName, phone, cancellationToken);
+        db.Links.Add(new GuardianStudentLink(Guid.CreateVersion7(), tenantId, guardian.Id, studentId, relationship, true, clock.UtcNow));
+        await db.SaveChangesAsync(cancellationToken);
+        return created;
+    }
+
+    public async Task<bool> HasPrimaryAsync(Guid tenantId, Guid studentId, CancellationToken cancellationToken)
+    {
+        using var _ = tenant.Scope(tenantId);
+        return await db.Links.AnyAsync(l => l.StudentId == studentId && l.IsPrimary && l.RemovedAt == null, cancellationToken);
+    }
+
+    public async Task<bool> GuardianExistsAsync(Guid tenantId, string phone, CancellationToken cancellationToken)
+    {
+        using var _ = tenant.Scope(tenantId);
+        return await db.Guardians.AnyAsync(g => g.Phone == phone, cancellationToken);
+    }
+
+    /// <summary>
+    /// The tenant's guardian for this phone, or a new primary profile for the account owning the phone. A person
+    /// already active at another school is active here immediately (they have verified this phone before).
+    /// </summary>
+    internal async Task<(Guardian Guardian, bool Created)> EnsurePrimaryAsync(Guid tenantId, string fullName, string phone, CancellationToken ct)
+    {
+        var existing = await db.Guardians.FirstOrDefaultAsync(g => g.TenantId == tenantId && g.Phone == phone, ct);
+        if (existing is not null)
+        {
+            return (existing, false);
+        }
+
+        var userId = await accounts.EnsureByPhoneAsync(phone, fullName, ct);
+        var g = new Guardian(Guid.CreateVersion7(), tenantId, userId, GuardianKind.Primary, fullName, phone, clock.UtcNow);
+        bool activeElsewhere;
+        using (tenant.CrossTenant("is this person already an active guardian elsewhere"))
+        {
+            activeElsewhere = await db.Guardians.AnyAsync(x => x.UserId == userId && x.ActivatedAt != null, ct);
+        }
+
+        if (activeElsewhere)
+        {
+            g.Activate(clock.UtcNow);
+        }
+
+        db.Guardians.Add(g);
+        audit.Write(new AuditEntry(AuditAction.GuardianCreated, AuditOutcome.Success, "guardian", g.Id.ToString(),
+            Data: new Dictionary<string, object?> { ["phone"] = Phone.Mask(phone) }, TenantId: tenantId));
+        return (g, true);
     }
 }
 

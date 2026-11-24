@@ -47,6 +47,7 @@ public sealed class DevSeeder(
                 await platform.SaveChangesAsync(ct);
             }
 
+            await SeedSchoolDataAsync(ct);
             return;
         }
 
@@ -92,6 +93,40 @@ public sealed class DevSeeder(
             new Guardian(Guid.CreateVersion7(), Greenfield, jordan.Id, GuardianKind.Primary, jordan.FullName, jordan.Phone!, now),
             new Guardian(Guid.CreateVersion7(), Riverside, jordan.Id, GuardianKind.Primary, jordan.FullName, jordan.Phone!, now),
             blockedProfile);
+        await guardians.SaveChangesAsync(ct);
+        await SeedSchoolDataAsync(ct);
+    }
+
+    /// <summary>Classes, students and guardian links (Phase 2c). Skipped when classes already exist.</summary>
+    private async Task SeedSchoolDataAsync(CancellationToken ct)
+    {
+        if (await schools.Classes.AnyAsync(ct))
+        {
+            return;
+        }
+
+        var now = clock.UtcNow;
+        var g1 = new SchoolClass(Guid.CreateVersion7(), Greenfield, "Grade 1", "1", 1);
+        var g2 = new SchoolClass(Guid.CreateVersion7(), Greenfield, "Grade 2", "2", 2);
+        var rec = new SchoolClass(Guid.CreateVersion7(), Riverside, "Reception", "R", 0);
+        var s1a = new Section(Guid.CreateVersion7(), Greenfield, g1.Id, "1A");
+        var s1b = new Section(Guid.CreateVersion7(), Greenfield, g1.Id, "1B");
+        schools.Classes.AddRange(g1, g2, rec);
+        schools.Sections.AddRange(s1a, s1b);
+        var leo = new Student(Guid.CreateVersion7(), Greenfield, "GF-001", "Leo", "Rivera", null, g1.Id, s1a.Id, DismissalEligibility.Eligible, null, null, now);
+        var maya = new Student(Guid.CreateVersion7(), Greenfield, "GF-002", "Maya", "Rivera", null, g2.Id, null, DismissalEligibility.Eligible, null, null, now);
+        var ben = new Student(Guid.CreateVersion7(), Greenfield, "GF-003", "Ben", "Blocked", null, g1.Id, s1b.Id, DismissalEligibility.Hold, null, "Pickup restricted to court-approved adults.", now);
+        var noah = new Student(Guid.CreateVersion7(), Riverside, "RV-001", "Noah", "Rivera", null, rec.Id, null, DismissalEligibility.Eligible, null, null, now);
+        schools.Students.AddRange(leo, maya, ben, noah);
+        await schools.SaveChangesAsync(ct);
+
+        var byPhone = await guardians.Guardians.ToListAsync(ct);
+        Guid G(Guid tenantId, string phone) => byPhone.First(x => x.TenantId == tenantId && x.Phone == phone).Id;
+        guardians.Links.AddRange(
+            new GuardianStudentLink(Guid.CreateVersion7(), Greenfield, G(Greenfield, "+15550100001"), leo.Id, Relationship.Parent, true, now),
+            new GuardianStudentLink(Guid.CreateVersion7(), Greenfield, G(Greenfield, "+15550100001"), maya.Id, Relationship.Parent, true, now),
+            new GuardianStudentLink(Guid.CreateVersion7(), Greenfield, G(Greenfield, "+15550100003"), ben.Id, Relationship.Father, true, now),
+            new GuardianStudentLink(Guid.CreateVersion7(), Riverside, G(Riverside, "+15550100001"), noah.Id, Relationship.Parent, true, now));
         await guardians.SaveChangesAsync(ct);
     }
 

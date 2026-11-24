@@ -117,6 +117,144 @@ namespace HomeBell.Modules.Schools.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("HomeBell.Modules.Schools.Domain.ImportJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CommittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("committed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_id");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("created_by_name");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("RowsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("rows_json");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SummaryJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("summary_json");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_import_job");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_import_job_tenant_id_created_at");
+
+                    b.ToTable("import_job", "schools");
+                });
+
+            modelBuilder.Entity("HomeBell.Modules.Schools.Domain.SchoolClass", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("GradeLevel")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("grade_level");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_school_class");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_school_class_tenant_id_name");
+
+                    b.ToTable("school_class", "schools");
+                });
+
+            modelBuilder.Entity("HomeBell.Modules.Schools.Domain.Section", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ClassId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("class_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_section");
+
+                    b.HasIndex("TenantId", "ClassId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_section_tenant_id_class_id_name");
+
+                    b.ToTable("section", "schools");
+                });
+
             modelBuilder.Entity("HomeBell.Modules.Schools.Domain.StaffInvitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -193,6 +331,100 @@ namespace HomeBell.Modules.Schools.Infrastructure.Migrations
                     b.ToTable("staff_invitation", "schools");
                 });
 
+            modelBuilder.Entity("HomeBell.Modules.Schools.Domain.Student", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ClassId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("class_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DismissalEligibility")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("dismissal_eligibility");
+
+                    b.Property<string>("ExternalRef")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("external_ref");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("first_name");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("last_name");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("PreferredName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("preferred_name");
+
+                    b.Property<string>("RestrictionsNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("restrictions_note");
+
+                    b.Property<Guid?>("SectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("section_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_student");
+
+                    b.HasIndex("TenantId", "ClassId")
+                        .HasDatabaseName("ix_student_tenant_id_class_id");
+
+                    b.HasIndex("TenantId", "ExternalRef")
+                        .IsUnique()
+                        .HasDatabaseName("ix_student_tenant_id_external_ref")
+                        .HasFilter("external_ref IS NOT NULL");
+
+                    b.HasIndex("TenantId", "LastName", "FirstName")
+                        .HasDatabaseName("ix_student_tenant_id_last_name_first_name");
+
+                    b.ToTable("student", "schools");
+                });
+
             modelBuilder.Entity("HomeBell.Modules.Schools.Domain.TenantMembership", b =>
                 {
                     b.Property<Guid>("Id")
@@ -249,6 +481,28 @@ namespace HomeBell.Modules.Schools.Infrastructure.Migrations
                         .HasDatabaseName("ix_tenant_membership_tenant_id_user_id");
 
                     b.ToTable("tenant_membership", "schools");
+                });
+
+            modelBuilder.Entity("HomeBell.Modules.Schools.Domain.TenantSettingsRecord", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("json");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("TenantId")
+                        .HasName("pk_tenant_settings");
+
+                    b.ToTable("tenant_settings", "schools");
                 });
 #pragma warning restore 612, 618
         }

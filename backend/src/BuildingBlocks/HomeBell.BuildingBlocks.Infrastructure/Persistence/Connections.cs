@@ -44,6 +44,9 @@ public sealed class ConnectionScope : IAsyncDisposable
 
     public NpgsqlTransaction? Transaction { get; internal set; }
 
+    /// <summary>Contexts that joined <see cref="Transaction"/>; released when it completes.</summary>
+    internal List<Microsoft.EntityFrameworkCore.DbContext> Enlisted { get; } = [];
+
     /// <summary>The <see cref="ITenantContext.Version"/> applied to the open session; -1 = none.</summary>
     internal int AppliedTenantVersion { get; set; } = -1;
 
@@ -176,6 +179,13 @@ public sealed class UnitOfWork(ConnectionScope scope) : IUnitOfWork
         finally
         {
             scope.Transaction = null;
+            // Detach every context from the finished transaction so later queries in the request work.
+            foreach (var ctx in scope.Enlisted)
+            {
+                Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.UseTransaction(ctx.Database, null);
+            }
+
+            scope.Enlisted.Clear();
         }
     }
 

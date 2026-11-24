@@ -88,6 +88,11 @@ public static class EndpointAuthorization
             var actor = services.GetRequiredService<ICurrentActor>();
             var access = await services.GetRequiredService<ITenantAccessResolver>().ResolveAsync(actor, tenantId, ctx.HttpContext.RequestAborted)
                 ?? throw Problem.NotFound();
+            if (isWrite && access.ReadOnlySupport)
+            {
+                throw Problem.Of(ErrorCodes.ScopeInsufficient, "Support sessions are read-only.");
+            }
+
             if (!access.Permissions.Contains(permission, StringComparer.Ordinal))
             {
                 throw Problem.Forbidden();
@@ -95,10 +100,6 @@ public static class EndpointAuthorization
 
             if (isWrite)
             {
-                if (access.ReadOnlySupport)
-                {
-                    throw Problem.Of(ErrorCodes.ScopeInsufficient, "Support sessions are read-only.");
-                }
 
                 if (access.OperationalMode is OperationalMode.ReadOnly)
                 {

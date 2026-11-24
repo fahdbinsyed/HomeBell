@@ -26,10 +26,19 @@ internal sealed class SchoolStats(SchoolsDbContext db, ITenantContext tenant) : 
         return await db.Memberships.CountAsync(m => m.TenantId == tenantId && m.State == MembershipState.Active, cancellationToken);
     }
 
-    public Task<int> ActiveStudentsAsync(Guid tenantId, CancellationToken cancellationToken) => Task.FromResult(0);
+    public async Task<int> ActiveStudentsAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        using var _ = tenant.Scope(tenantId);
+        return await db.Students.CountAsync(s => s.TenantId == tenantId && s.Status == StudentStatus.Active, cancellationToken);
+    }
 
-    public Task<IReadOnlyDictionary<Guid, int>> ActiveStudentsByTenantAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyDictionary<Guid, int>>(new Dictionary<Guid, int>());
+    public async Task<IReadOnlyDictionary<Guid, int>> ActiveStudentsByTenantAsync(CancellationToken cancellationToken)
+    {
+        using var _ = tenant.CrossTenant("platform tenant list: active student counts");
+        return await db.Students.AsNoTracking().Where(s => s.Status == StudentStatus.Active)
+            .GroupBy(s => s.TenantId).Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
+    }
 
     public Task<int> ActiveDisplaysAsync(Guid tenantId, CancellationToken cancellationToken) => Task.FromResult(0);
 }

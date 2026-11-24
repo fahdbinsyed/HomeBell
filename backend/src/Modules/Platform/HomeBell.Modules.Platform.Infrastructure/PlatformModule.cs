@@ -29,6 +29,7 @@ public sealed class PlatformModule : IModule
         services.AddScoped<ITenantDirectory, TenantDirectory>();
         services.AddScoped<EntitlementService>();
         services.AddScoped<PlatformSupport>();
+        services.AddScoped<ITenantPlans, TenantPlans>();
         services.AddScoped<IEntitlements>(sp => sp.GetRequiredService<EntitlementService>());
     }
 
@@ -213,6 +214,25 @@ internal sealed class TenantDirectory(PlatformDbContext db) : ITenantDirectory
     }
 
     private static TenantInfo Map(Tenant t) => new(t.Id, t.Name, t.Slug, t.State, t.OperationalMode, t.Timezone);
+}
+
+internal sealed class TenantPlans(PlatformDbContext db) : ITenantPlans
+{
+    public async Task<TenantPlanInfo?> FindAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        var t = await db.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == tenantId, cancellationToken);
+        if (t is null)
+        {
+            return null;
+        }
+
+        var planName = await (from s in db.Subscriptions.AsNoTracking()
+                              where s.TenantId == tenantId
+                              join v in db.PlanVersions.AsNoTracking() on s.PlanVersionId equals v.Id
+                              join p in db.Plans.AsNoTracking() on v.PlanId equals p.Id
+                              select p.Name).FirstOrDefaultAsync(cancellationToken);
+        return new TenantPlanInfo(planName, t.ExpiresAt, t.TermStart, t.TermEnd);
+    }
 }
 
 /// <summary>Resolves effective entitlements (plan ⊕ lifecycle ⊕ overrides ⊕ flags) with usage counts.</summary>

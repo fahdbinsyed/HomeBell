@@ -101,6 +101,14 @@ test('idempotent operations document every idempotency outcome', () => {
   }
 });
 
+test('tenant-plane operations document 404 for foreign tenants', () => {
+  // Unknown or foreign tenant IDs return 404 NOT_FOUND, never 403 (02-multitenancy §3).
+  for (const { path, method, op } of operations()) {
+    if (!path.startsWith('/v1/t/{tenantId}')) continue;
+    assert.ok(op.responses['404'], `${method.toUpperCase()} ${path} must document 404`);
+  }
+});
+
 test('error responses use application/problem+json', () => {
   const responses = spec.components.responses ?? {};
   for (const { path, method, op } of operations()) {

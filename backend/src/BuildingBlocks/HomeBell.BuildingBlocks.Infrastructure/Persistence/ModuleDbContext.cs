@@ -131,6 +131,7 @@ public abstract class ModuleDbContext : DbContext
         if (_deps.Connection.Transaction is { } tx && Database.CurrentTransaction?.GetDbTransaction() != tx)
         {
             Database.UseTransaction(tx);
+            _deps.Connection.Enlisted.Add(this);
         }
 
         GuardTenantWrites();

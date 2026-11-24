@@ -37,3 +37,14 @@ public interface IOtpUsage
 {
     Task<int> SentTodayAsync(CancellationToken cancellationToken);
 }
+
+public sealed record UserInfo(Guid Id, string FullName, string? Email, bool MfaEnabled, DateTimeOffset? LastLoginAt);
+
+public sealed record ActiveDeviceInfo(Guid DeviceId, string Platform, string Model, string State, DateTimeOffset ActivatedAt, DateTimeOffset? LastSeenAt);
+
+public interface IUserDirectory
+{
+    Task<IReadOnlyDictionary<Guid, UserInfo>> GetManyAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken);
+
+    Task<IReadOnlyDictionary<Guid, ActiveDeviceInfo>> ActiveDevicesAsync(IReadOnlyCollection<Guid> userIds, CancellationToken cancellationToken);
+}

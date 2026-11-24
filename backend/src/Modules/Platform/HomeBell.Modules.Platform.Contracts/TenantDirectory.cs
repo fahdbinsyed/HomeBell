@@ -23,3 +23,10 @@ public interface IEntitlements
 
     Task<bool> HasFeatureAsync(Guid tenantId, string featureKey, CancellationToken cancellationToken);
 }
+
+public sealed record TenantPlanInfo(string? PlanName, DateTimeOffset? ExpiresAt, DateOnly TermStart, DateOnly TermEnd);
+
+public interface ITenantPlans
+{
+    Task<TenantPlanInfo?> FindAsync(Guid tenantId, CancellationToken cancellationToken);
+}

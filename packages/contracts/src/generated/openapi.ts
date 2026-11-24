@@ -7054,6 +7054,7 @@ export interface operations {
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
     };
   };
@@ -7372,6 +7373,7 @@ export interface operations {
       };
       400: components['responses']['BadRequest'];
       403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       /** @description PRIMARY_GUARDIAN_EXISTS or GUARDIAN_PHONE_IN_USE. */
       409: {
         headers: {
@@ -7748,6 +7750,7 @@ export interface operations {
       };
       400: components['responses']['BadRequest'];
       403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       /** @description PAYLOAD_TOO_LARGE. */
       413: {
         headers: {
@@ -8557,6 +8560,7 @@ export interface operations {
       };
       400: components['responses']['BadRequest'];
       403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       /** @description LIMIT_EXCEEDED (staff.max). */
       422: {
@@ -8745,6 +8749,7 @@ export interface operations {
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
       409: components['responses']['Conflict'];
       /** @description LIMIT_EXCEEDED (students.max). */
       422: {

@@ -217,7 +217,7 @@ public sealed partial class StaffAuthService(
         }, ct);
     }
 
-    private async Task<StaffLoginAuthenticated> CompleteAsync(UserAccount user, string audience, CancellationToken ct)
+    internal async Task<StaffLoginAuthenticated> CompleteAsync(UserAccount user, string audience, CancellationToken ct)
     {
         user.RecordLogin(clock.UtcNow);
         var kind = audience == Platform ? SessionKind.Platform : SessionKind.Staff;
@@ -266,7 +266,7 @@ public sealed partial class StaffAuthService(
         return true;
     }
 
-    private string Protect(Guid userId, string audience, string purpose, out DateTimeOffset expiresAt)
+    internal string Protect(Guid userId, string audience, string purpose, out DateTimeOffset expiresAt)
     {
         expiresAt = clock.UtcNow.Add(StepTokenLifetime);
         var payload = JsonSerializer.Serialize(new StepToken(userId, audience, purpose));

@@ -3,6 +3,13 @@
 Versioning follows ADR-0004: additive changes bump the minor `info.version` within `/v1`; breaking
 changes need an ADR and a `/v2` path for the affected resources.
 
+## 1.3.0 — 2026-11-24 (additive)
+
+- Five tenant-plane create operations (`POST …/classes`, `…/students`, `…/imports`, `…/guardians`,
+  `…/staff-invitations`) now document `404`. A foreign or unknown tenant always returns `404 NOT_FOUND`
+  (02-multitenancy §3); the responses were missing. Found by the backend tenant-isolation suite
+  (Phase 2c). Enforced by a contract rule test for every `/v1/t/{tenantId}/**` operation.
+
 ## 1.2.0 — 2026-11-23 (additive)
 
 - Every operation that takes `Idempotency-Key` now documents all three idempotency outcomes: `400`

@@ -128,11 +128,6 @@ namespace HomeBell.Modules.Guardians.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("activated_at");
 
-                    b.Property<string>("BlockedReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("blocked_reason");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -149,6 +144,14 @@ namespace HomeBell.Modules.Guardians.Infrastructure.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("kind");
 
+                    b.Property<DateTimeOffset?>("LastActiveAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_active_at");
+
+                    b.Property<DateTimeOffset?>("LastWelcomeSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_welcome_sent_at");
+
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -161,9 +164,22 @@ namespace HomeBell.Modules.Guardians.Infrastructure.Migrations
                         .HasColumnType("character varying(24)")
                         .HasColumnName("state");
 
+                    b.Property<DateTimeOffset?>("StateChangedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("state_changed_at");
+
+                    b.Property<string>("StateReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("state_reason");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
@@ -193,6 +209,60 @@ namespace HomeBell.Modules.Guardians.Infrastructure.Migrations
                         .HasDatabaseName("ix_guardian_tenant_id_user_id");
 
                     b.ToTable("guardian", "guardians");
+                });
+
+            modelBuilder.Entity("HomeBell.Modules.Guardians.Domain.GuardianStudentLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("GuardianId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("guardian_id");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_primary");
+
+                    b.Property<string>("Relationship")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("relationship");
+
+                    b.Property<DateTimeOffset?>("RemovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removed_at");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("student_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_guardian_student_link");
+
+                    b.HasIndex("TenantId", "GuardianId")
+                        .HasDatabaseName("ix_guardian_student_link_tenant_id_guardian_id");
+
+                    b.HasIndex("TenantId", "StudentId")
+                        .HasDatabaseName("ix_guardian_student_link_tenant_id_student_id");
+
+                    b.HasIndex(new[] { "TenantId", "StudentId" }, "ux_link_one_primary")
+                        .IsUnique()
+                        .HasDatabaseName("ix_guardian_student_link_tenant_id_student_id1")
+                        .HasFilter("is_primary AND removed_at IS NULL");
+
+                    b.ToTable("guardian_student_link", "guardians");
                 });
 #pragma warning restore 612, 618
         }
