@@ -68,10 +68,22 @@ export function DataTable<T>({
                 key={rowKey(r)}
                 className={
                   onRowClick
-                    ? 'cursor-pointer hover:bg-surface-muted focus-within:bg-surface-muted'
+                    ? 'cursor-pointer hover:bg-surface-muted focus-within:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus'
                     : ''
                 }
                 onClick={onRowClick ? () => onRowClick(r) : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (e) => {
+                        // Only the row itself: let buttons/links inside the row handle their own keys.
+                        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault();
+                          onRowClick(r);
+                        }
+                      }
+                    : undefined
+                }
               >
                 {columns.map((c) => (
                   <td

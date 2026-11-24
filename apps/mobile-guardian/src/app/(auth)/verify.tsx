@@ -44,7 +44,12 @@ export default function VerifyScreen() {
   const resend = useMutation({
     mutationFn: () =>
       unwrap(client.POST('/v1/auth/otp/resend', { body: { challengeId: challenge!.challengeId } })),
-    onSuccess: setChallenge,
+    onSuccess: (c) => {
+      // A fresh code was sent: drop the old "wrong code" error and attempts count.
+      verify.reset();
+      setCode('');
+      setChallenge(c);
+    },
   });
   if (!challenge)
     return (

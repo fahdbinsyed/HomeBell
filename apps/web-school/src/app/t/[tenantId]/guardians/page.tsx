@@ -19,6 +19,7 @@ import {
   Select,
   StateBadge,
   Switch,
+  useLink,
 } from '@homebell/ui-web';
 import { messageFor, useApi, usePagedList } from '@homebell/web-core';
 import { schoolKey, useSchool } from '@/lib/school';
@@ -27,6 +28,7 @@ export default function GuardiansPage() {
   const { tenantId, can, canWrite } = useSchool();
   const { client } = useApi();
   const router = useRouter();
+  const Link = useLink();
   const [q, setQ] = useState('');
   const [state, setState] = useState<GuardianState | ''>('');
   const [kind, setKind] = useState<GuardianKind | ''>('');
@@ -109,7 +111,12 @@ export default function GuardiansPage() {
             header: 'Guardian',
             cell: (g) => (
               <div>
-                <p className="font-medium">{g.fullName}</p>
+                <Link
+                  href={`/t/${tenantId}/guardians/${g.id}`}
+                  className="font-medium text-text hover:underline"
+                >
+                  {g.fullName}
+                </Link>
                 <p className="text-xs text-text-muted">{g.maskedPhone}</p>
               </div>
             ),

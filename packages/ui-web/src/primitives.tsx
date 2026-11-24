@@ -204,8 +204,11 @@ export function Switch({
       >
         <span
           className={cn(
-            'absolute top-0.5 size-5 rounded-full bg-surface shadow transition-transform',
-            checked ? 'translate-x-5' : 'translate-x-0.5',
+            // Anchor to the left edge: without `left`, an absolute child of a <button> sits at the
+            // button's centred content position and the translate pushes it outside the track.
+            // White in both themes so the knob stays visible on the dark track.
+            'absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform',
+            checked ? 'translate-x-5' : 'translate-x-0',
           )}
         />
       </button>

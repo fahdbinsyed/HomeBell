@@ -18,6 +18,7 @@ import {
   PageHeader,
   Select,
   StateBadge,
+  useLink,
 } from '@homebell/ui-web';
 import { messageFor, useApi, usePagedList } from '@homebell/web-core';
 import { schoolKey, useSchool } from '@/lib/school';
@@ -26,6 +27,7 @@ export default function StudentsPage() {
   const { tenantId, can, canWrite, has } = useSchool();
   const { client } = useApi();
   const router = useRouter();
+  const Link = useLink();
   const [q, setQ] = useState('');
   const [classId, setClassId] = useState('');
   const [status, setStatus] = useState<StudentStatus | ''>('active');
@@ -131,9 +133,12 @@ export default function StudentsPage() {
             header: 'Student',
             cell: (s) => (
               <div>
-                <p className="font-medium">
+                <Link
+                  href={`/t/${tenantId}/students/${s.id}`}
+                  className="font-medium text-text hover:underline"
+                >
                   {s.preferredName ?? s.firstName} {s.lastName}
-                </p>
+                </Link>
                 <p className="text-xs text-text-muted">{s.externalRef ?? '—'}</p>
               </div>
             ),

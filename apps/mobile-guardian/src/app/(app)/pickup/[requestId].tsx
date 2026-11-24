@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { Alert } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { unwrap } from '@homebell/api-client';
 import { formatTime, labels } from '@homebell/copy';
@@ -106,7 +107,16 @@ export default function PickupStatusScreen() {
           title="Cancel request"
           variant="secondary"
           loading={cancel.isPending}
-          onPress={() => cancel.mutate()}
+          onPress={() =>
+            Alert.alert(
+              'Cancel this pickup request?',
+              'The school will stop preparing ' + r.studentFirstName + '.',
+              [
+                { text: 'Keep request', style: 'cancel' },
+                { text: 'Cancel request', style: 'destructive', onPress: () => cancel.mutate() },
+              ],
+            )
+          }
         />
       )}
       {r.state === 'exception' && (

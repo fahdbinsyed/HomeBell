@@ -29,8 +29,13 @@ const TIMEZONES = [
   'Pacific/Honolulu',
   'Europe/London',
   'Asia/Dubai',
-  'Asia/Karachi',
+  'Asia/Qatar',
+  'Asia/Bahrain',
+  'Asia/Kuwait',
+  'Asia/Muscat',
   'Asia/Riyadh',
+  'Asia/Karachi',
+  'Asia/Kolkata',
 ];
 const slugify = (s: string) =>
   s
@@ -111,6 +116,15 @@ export default function NewTenantPage() {
     f.contactName.trim() &&
     /\S+@\S+\.\S+/.test(f.contactEmail) &&
     (f.initialState !== 'trial' || f.expiresAt);
+  const missing = [
+    !f.name.trim() && 'school name',
+    f.slug.length < 3 && 'address (slug)',
+    !f.termStartDate && 'term start',
+    !f.termEndDate && 'term end',
+    f.initialState === 'trial' && !f.expiresAt && 'trial end',
+    !f.contactName.trim() && 'contact name',
+    !/\S+@\S+\.\S+/.test(f.contactEmail) && 'contact email',
+  ].filter(Boolean) as string[];
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (valid) create.mutate();
@@ -318,6 +332,11 @@ export default function NewTenantPage() {
           <Button variant="secondary" onClick={() => router.back()}>
             Cancel
           </Button>
+          {!valid && (
+            <p className="self-center text-sm text-text-muted" aria-live="polite">
+              Still needed: {missing.join(', ')}.
+            </p>
+          )}
         </div>
       </form>
     </>

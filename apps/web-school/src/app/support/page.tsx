@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { decodeSupportHandoff } from '@homebell/mocks';
 import { AuthLayout, Banner, Logo, Spinner } from '@homebell/ui-web';
@@ -16,7 +16,11 @@ export default function SupportEntryPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  // The hand-off is single-use: read it once even though React (dev Strict Mode) runs effects twice.
+  const handled = useRef(false);
   useEffect(() => {
+    if (handled.current) return;
+    handled.current = true;
     const payload = decodeSupportHandoff(window.location.hash.slice(1));
     window.history.replaceState(null, '', '/support');
     if (!mock) return setError('Support sessions connect through the real API in Phase 3.');

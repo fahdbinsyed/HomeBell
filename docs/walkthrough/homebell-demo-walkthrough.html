@@ -1,0 +1,1063 @@
+<title>HomeBell Demo Walkthrough</title>
+<meta name="claude:viewport-fit-sides" content="cover" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap"
+/>
+<style>
+  /* Layout: one reading column; a sticky scene index on wide screens; the story runs in dismissal order. */
+  :root {
+    --bg: #f6f7fa;
+    --surface: #ffffff;
+    --ink: #18202e;
+    --muted: #5a6475;
+    --line: #dfe3ea;
+    --brass: #b07613;
+    --brass-soft: #fbf1dd;
+    --navy: #1f3a68;
+    --navy-soft: #e7edf8;
+    --ok: #1f7a4d;
+    --ok-soft: #e3f3ea;
+    --warn-soft: #fdf3e2;
+    --warn: #8a5a08;
+    --code-bg: #eef1f6;
+    --display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+    --body: 'Figtree', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --bg: #10141c;
+      --surface: #171d28;
+      --ink: #e8ecf3;
+      --muted: #9aa5b8;
+      --line: #2a3242;
+      --brass: #e2a948;
+      --brass-soft: #2e2413;
+      --navy: #9db8ea;
+      --navy-soft: #1b2538;
+      --ok: #6fd3a0;
+      --ok-soft: #14291f;
+      --warn-soft: #2c2210;
+      --warn: #f0c26e;
+      --code-bg: #1f2633;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme='dark'] {
+    --bg: #10141c;
+    --surface: #171d28;
+    --ink: #e8ecf3;
+    --muted: #9aa5b8;
+    --line: #2a3242;
+    --brass: #e2a948;
+    --brass-soft: #2e2413;
+    --navy: #9db8ea;
+    --navy-soft: #1b2538;
+    --ok: #6fd3a0;
+    --ok-soft: #14291f;
+    --warn-soft: #2c2210;
+    --warn: #f0c26e;
+    --code-bg: #1f2633;
+    color-scheme: dark;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 4rem;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: 3rem;
+  }
+  @media (max-width: 860px) {
+    .wrap {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+    }
+    nav.index {
+      display: none;
+    }
+  }
+  header.top {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-block: 3rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+  }
+  .bell {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: var(--brass);
+    display: grid;
+    place-items: center;
+  }
+  .bell svg {
+    width: 20px;
+    height: 20px;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 3.1rem);
+    line-height: 1.08;
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    font-size: 1.15rem;
+    color: var(--muted);
+    max-width: 62ch;
+    margin: 0;
+  }
+  h2 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.7rem;
+    line-height: 1.2;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.15rem;
+    margin: 0;
+  }
+  p {
+    margin: 0;
+  }
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-block: 2.25rem;
+    border-top: 1px solid var(--line);
+    scroll-margin-top: 1rem;
+  }
+  main > section:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--brass);
+  }
+  nav.index {
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.92rem;
+  }
+  nav.index a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+  }
+  nav.index a:hover {
+    color: var(--ink);
+    background: var(--navy-soft);
+  }
+  nav.index .grp {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0.9rem 0.6rem 0.2rem;
+  }
+  a {
+    color: var(--navy);
+  }
+  a:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+  }
+  code,
+  .mono {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--code-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  pre {
+    margin: 0;
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+
+  /* Story strip: six real steps of a school afternoon, in order. */
+  .story {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+  .story li {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.85rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .story .t {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--brass);
+  }
+  .story b {
+    font-weight: 600;
+  }
+  .story span {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  .app-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+  }
+  .who {
+    color: var(--muted);
+    max-width: 64ch;
+  }
+  .login {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    background: var(--navy-soft);
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+  }
+  .login .lbl {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--navy);
+    margin-right: 0.25rem;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.2rem 0.25rem 0.2rem 0.55rem;
+    color: var(--ink);
+  }
+  .chip button {
+    font: inherit;
+    font-family: var(--body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    border: 0;
+    background: var(--code-bg);
+    color: var(--muted);
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    cursor: pointer;
+  }
+  .chip button:hover {
+    color: var(--ink);
+  }
+  .chip button.done {
+    color: var(--ok);
+    background: var(--ok-soft);
+  }
+
+  ol.steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  ol.steps > li {
+    counter-increment: s;
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0.1rem 0.6rem;
+  }
+  ol.steps > li::before {
+    content: counter(s);
+    grid-row: span 2;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    border: 1.5px solid var(--brass);
+    color: var(--brass);
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: grid;
+    place-items: center;
+    margin-top: 0.15rem;
+    font-variant-numeric: tabular-nums;
+  }
+  ol.steps .say {
+    color: var(--muted);
+    font-size: 0.93rem;
+  }
+  .ui {
+    font-weight: 600;
+  }
+
+  .note {
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .note.warn {
+    background: var(--warn-soft);
+    color: var(--ink);
+  }
+  .note.warn strong {
+    color: var(--warn);
+  }
+  .note.tip {
+    background: var(--brass-soft);
+  }
+  .note.ok {
+    background: var(--ok-soft);
+  }
+
+  .tbl {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.6rem 0.85rem;
+    border-top: 1px solid var(--line);
+    vertical-align: top;
+  }
+  thead th {
+    border-top: 0;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    background: var(--code-bg);
+  }
+  td:first-child {
+    white-space: nowrap;
+  }
+
+  .grid2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+  .grid2 > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .fixed {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .fixed li {
+    padding-left: 1.3rem;
+    position: relative;
+  }
+  .fixed li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.6em;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--ok);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+</style>
+
+<header class="top">
+  <div class="brand">
+    <div class="bell" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#fff"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      </svg>
+    </div>
+    HomeBell · Powered by neuXplus
+  </div>
+  <h1>HomeBell demo walkthrough</h1>
+  <p class="lede">
+    A script for showing all four HomeBell apps, following one school afternoon from a parent
+    tapping "Request pickup" to the child walking out the gate. Everything runs on one laptop with
+    demo data, so nothing you click reaches real parents or schools.
+  </p>
+</header>
+
+<div class="wrap">
+  <nav class="index" aria-label="On this page">
+    <a href="#story">The story</a>
+    <a href="#setup">Before you start</a>
+    <div class="grp">The apps</div>
+    <a href="#platform">1 · Platform console</a>
+    <a href="#school">2 · School dashboard</a>
+    <a href="#display">3 · Display screen</a>
+    <a href="#mobile">4 · Parent app</a>
+    <div class="grp">Reference</div>
+    <a href="#extras">Things to try</a>
+    <a href="#logins">All demo logins</a>
+    <a href="#limits">Demo limits</a>
+    <a href="#review">What the review fixed</a>
+  </nav>
+
+  <main>
+    <section id="story">
+      <p class="eyebrow">The story</p>
+      <h2>What HomeBell does, in one afternoon</h2>
+      <p>
+        Schools lose a lot of time at dismissal: cars queue at the gate, staff shout names, and
+        children wait without knowing who is coming. HomeBell lets parents tell the school they're
+        on the way, so staff can send each child out at the right moment.
+      </p>
+      <ol class="story">
+        <li>
+          <span class="t">Before term</span><b>HomeBell team</b
+          ><span>creates the school in the Platform console.</span>
+        </li>
+        <li>
+          <span class="t">Setup week</span><b>School admin</b
+          ><span>adds students, parents and the gate TV.</span>
+        </li>
+        <li>
+          <span class="t">2:55 pm</span><b>Parent</b
+          ><span>taps "Request pickup" in the phone app.</span>
+        </li>
+        <li>
+          <span class="t">3:00 pm</span><b>Dispatcher</b
+          ><span>sees the request in the Live queue.</span>
+        </li>
+        <li>
+          <span class="t">3:02 pm</span><b>Gate TV</b
+          ><span>shows "Mia R." so the child heads out.</span>
+        </li>
+        <li>
+          <span class="t">3:04 pm</span><b>Parent</b><span>confirms "Mia is with me". Done.</span>
+        </li>
+      </ol>
+      <p>Show the apps in this order. The demo works best in the order the story happens.</p>
+    </section>
+
+    <section id="setup">
+      <p class="eyebrow">Before you start</p>
+      <h2>Start the apps</h2>
+      <p>
+        Open a terminal in the project folder (<code>C:\NeuXPlus\Homebell</code>) and start each web
+        app. Each one needs its own terminal window.
+      </p>
+      <pre>
+pnpm --filter @homebell/web-platform dev     # http://localhost:3001
+pnpm --filter @homebell/web-school dev       # http://localhost:3000
+pnpm --filter @homebell/web-display dev      # http://localhost:3002</pre>
+      <p>
+        For the parent app, open the HomeBell development build on the Android phone, then start
+        Metro on the laptop. The phone and laptop must be on the same Wi-Fi.
+      </p>
+      <pre>pnpm --filter @homebell/mobile-guardian start</pre>
+      <div class="note tip">
+        <p>
+          <strong>Tip:</strong> open each web app once before your brother arrives. The first page
+          load takes 10–20 seconds while it compiles; after that, pages switch instantly.
+        </p>
+      </div>
+    </section>
+
+    <section id="platform">
+      <div class="app-head">
+        <p class="eyebrow">App 1 of 4</p>
+        <a href="http://localhost:3001">localhost:3001</a>
+      </div>
+      <h2>Platform console</h2>
+      <p class="who">
+        Used by the neuXplus team, never by schools. This is where schools are created, put on
+        trial, switched to paid, or suspended.
+      </p>
+      <div class="login">
+        <span class="lbl">Sign in</span>
+        <span class="chip"
+          >owner@homebell.test<button type="button" data-copy="owner@homebell.test">
+            Copy
+          </button></span
+        >
+        <span class="chip">demo1234<button type="button" data-copy="demo1234">Copy</button></span>
+        <span class="chip">MFA 000000<button type="button" data-copy="000000">Copy</button></span>
+      </div>
+      <ol class="steps">
+        <li>
+          <span
+            >Sign in. You'll get a second step asking for a 6-digit code; enter
+            <code>000000</code>.</span
+          ><span class="say"
+            >Say: platform staff always use two-step verification, because this console can switch
+            off any school.</span
+          >
+        </li>
+        <li>
+          <span
+            >On <span class="ui">Schools</span>, point out the status column (Active, Trial,
+            Suspended) and the warning flags.</span
+          ><span class="say"
+            >Each school is a separate, sealed-off tenant. One school can never see another's
+            data.</span
+          >
+        </li>
+        <li>
+          <span
+            >Click <span class="ui">Create school</span>. Type a name; the address fills itself.
+            Pick a time zone (Qatar, Kuwait, India and others are listed), term dates, and a trial
+            end date. Add a contact.</span
+          ><span class="say"
+            >The grey line beside the button lists what's still missing, so you're never stuck with
+            a greyed-out button.</span
+          >
+        </li>
+        <li>
+          <span
+            >Create it. Open the new school's <span class="ui">Lifecycle</span> tab: history shows
+            "Created → Trial, reason Trial requested".</span
+          ><span class="say">Every change of state needs a reason and is recorded for audit.</span>
+        </li>
+        <li>
+          <span
+            >Open <span class="ui">Greenfield Academy</span> and walk the tabs: Overview, Plan &amp;
+            subscription, Entitlements, Usage &amp; limits, Notes, Audit.</span
+          >
+        </li>
+        <li>
+          <span
+            >Try <span class="ui">Suspend</span> on a test school, then
+            <span class="ui">Reinstate</span> it.</span
+          >
+        </li>
+        <li>
+          <span
+            >Open <span class="ui">Support sessions</span> and start one for Greenfield. A new tab
+            opens the school dashboard in a read-only support view with a purple banner.</span
+          ><span class="say"
+            >Support can look, but can't change anything, and the school can see that support was
+            in.</span
+          >
+        </li>
+        <li>
+          <span
+            >Finish with <span class="ui">Device transfers</span> and
+            <span class="ui">Audit log</span>.</span
+          ><span class="say"
+            >This is where we catch parents trying to share one login across phones.</span
+          >
+        </li>
+      </ol>
+    </section>
+
+    <section id="school">
+      <div class="app-head">
+        <p class="eyebrow">App 2 of 4</p>
+        <a href="http://localhost:3000">localhost:3000</a>
+      </div>
+      <h2>School dashboard</h2>
+      <p class="who">
+        Used by each school's office staff and the dismissal team. The demo school is Greenfield
+        Academy, mid-afternoon with pickups already in progress.
+      </p>
+      <div class="login">
+        <span class="lbl">Sign in</span>
+        <span class="chip"
+          >admin@greenfield.test<button type="button" data-copy="admin@greenfield.test">
+            Copy
+          </button></span
+        >
+        <span class="chip">demo1234<button type="button" data-copy="demo1234">Copy</button></span>
+      </div>
+      <ol class="steps">
+        <li>
+          <span
+            ><span class="ui">Overview</span>: today's requests, completed pickups, median time to
+            confirm, and screens online.</span
+          >
+        </li>
+        <li>
+          <span
+            ><span class="ui">Live queue</span>: the heart of the product. Press
+            <span class="ui">Sent out</span> on a waiting child.</span
+          ><span class="say"
+            >Staff send a child out only when the parent is close, so children don't stand at the
+            gate for 20 minutes.</span
+          >
+        </li>
+        <li>
+          <span
+            ><span class="ui">Students</span> → click a name, then
+            <span class="ui">Add student</span>. The Section box says "Choose a class first" until a
+            class is picked.</span
+          >
+        </li>
+        <li>
+          <span
+            ><span class="ui">Guardians</span> → open one. Show the linked children, the phone, and
+            the block/deactivate options.</span
+          ><span class="say"
+            >Only guardians the school added can request pickup. Unknown phones get nothing.</span
+          >
+        </li>
+        <li>
+          <span
+            ><span class="ui">Staff &amp; roles</span>: admins, dispatchers, front desk and
+            reports-only users each see a different menu.</span
+          >
+        </li>
+        <li>
+          <span
+            ><span class="ui">Display screens</span> →
+            <span class="ui">Simulate a screen (mock)</span>, then pair it.</span
+          ><span class="say"
+            >In real life, the TV at the gate shows a code and you type it here.</span
+          >
+        </li>
+        <li>
+          <span
+            >Quick tour: <span class="ui">Reports</span>,
+            <span class="ui">Settings</span> (dismissal windows and timeouts),
+            <span class="ui">Subscription</span>, <span class="ui">Audit log</span>,
+            <span class="ui">Setup checklist</span>.</span
+          >
+        </li>
+      </ol>
+      <div class="note tip">
+        <p>
+          <strong>Show roles:</strong> sign out and sign in as
+          <code>dispatch@greenfield.test</code> (same password). The menu shrinks to just the queue,
+          students and guardians.
+        </p>
+      </div>
+    </section>
+
+    <section id="display">
+      <div class="app-head">
+        <p class="eyebrow">App 3 of 4</p>
+        <a href="http://localhost:3002">localhost:3002</a>
+      </div>
+      <h2>Display screen</h2>
+      <p class="who">
+        Runs full-screen on a TV at the gate or in the lobby. It has no login: it's paired to one
+        school once.
+      </p>
+      <ol class="steps">
+        <li><span>Open it. A large pairing code and QR code appear.</span></li>
+        <li>
+          <span
+            >Click <span class="ui">Use the demo Greenfield Academy screen</span> in the yellow
+            box.</span
+          >
+        </li>
+        <li>
+          <span>The board shows the queue: first name and last initial only.</span
+          ><span class="say"
+            >There are never phone numbers or parent names on the TV, because anyone in the car line
+            can see it.</span
+          >
+        </li>
+        <li>
+          <span>Press <kbd>F11</kbd> for full screen, the way it looks on a real TV.</span>
+        </li>
+      </ol>
+    </section>
+
+    <section id="mobile">
+      <div class="app-head">
+        <p class="eyebrow">App 4 of 4</p>
+        <span class="who">Android phone (iPhone uses the same app)</span>
+      </div>
+      <h2>Parent app</h2>
+      <p class="who">
+        What parents and other guardians install. One app for Android and iPhone. Sign-in is by
+        phone number and SMS code, with no password.
+      </p>
+      <div class="login">
+        <span class="lbl">Sign in</span>
+        <span class="chip"
+          >+15550100001<button type="button" data-copy="+15550100001">Copy</button></span
+        >
+        <span class="chip"
+          >SMS code 000000<button type="button" data-copy="000000">Copy</button></span
+        >
+      </div>
+      <ol class="steps">
+        <li>
+          <span
+            >Tap <span class="ui">Sign in with my phone number</span>, enter the number, tap
+            <span class="ui">Send code</span>, and type <code>000000</code>. It signs in by itself
+            once the 6th digit is in.</span
+          ><span class="say"
+            >This is Jordan Rivera: Mia and Leo at Greenfield, Ava at Riverside.</span
+          >
+        </li>
+        <li>
+          <span
+            >On the <span class="ui">Pickup</span> tab, each school has its own card with each
+            child's status.</span
+          >
+        </li>
+        <li>
+          <span
+            >Tap <span class="ui">Request pickup</span>, choose which children, and add a note like
+            "Silver minivan, gate 2". Send.</span
+          >
+        </li>
+        <li>
+          <span
+            >The status page shows the queue position. When the school sends the child out, tap
+            <span class="ui">Confirm … is with me</span>.</span
+          ><span class="say"
+            >The loop only closes when the parent confirms, so the school knows every child left
+            with the right adult.</span
+          >
+        </li>
+        <li>
+          <span
+            ><span class="ui">Family</span> → <span class="ui">Add a guardian</span>: for a
+            grandparent or driver, with their own phone.</span
+          >
+        </li>
+        <li>
+          <span
+            >Show <span class="ui">History</span> and <span class="ui">Alerts</span>, then
+            <span class="ui">Account</span>.</span
+          >
+        </li>
+      </ol>
+      <div class="note tip">
+        <p>
+          <strong>The one-phone rule:</strong> sign out and sign in with <code>+15550100006</code>.
+          The app says the account is active on another phone and offers to move it here. It now
+          asks you to confirm first, because the other phone gets signed out and you can't move
+          again for 30 days. Try <code>+15550100007</code> to see the 30-day block.
+        </p>
+      </div>
+    </section>
+
+    <section id="extras">
+      <p class="eyebrow">Things to try</p>
+      <h2>Edge cases worth showing</h2>
+      <p>These show that HomeBell handles the awkward days too, not only the happy path.</p>
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr>
+              <th>Where</th>
+              <th>Do this</th>
+              <th>What happens</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Parent app</td>
+              <td>Sign in with <code>+15550100003</code></td>
+              <td>Blocked guardian: told to contact the school.</td>
+            </tr>
+            <tr>
+              <td>Parent app</td>
+              <td>Sign in with <code>+15550100008</code></td>
+              <td>School is suspended: "service paused", follow the school's usual process.</td>
+            </tr>
+            <tr>
+              <td>Parent app</td>
+              <td>Sign in with <code>+15550109999</code></td>
+              <td>No account at any school.</td>
+            </tr>
+            <tr>
+              <td>Parent app</td>
+              <td>
+                <span class="ui">I have an invitation code</span> → <code>GRNFD7K2QX</code>, phone
+                <code>+15550100010</code>
+              </td>
+              <td>An invited driver joins.</td>
+            </tr>
+            <tr>
+              <td>Parent app</td>
+              <td>Enter a wrong SMS code a few times</td>
+              <td>Counts down the attempts left, then locks.</td>
+            </tr>
+            <tr>
+              <td>School dashboard</td>
+              <td>Sign in as <code>admin@riverside.test</code></td>
+              <td>Trial with 3 days left: a banner warns the school.</td>
+            </tr>
+            <tr>
+              <td>School dashboard</td>
+              <td>Sign in as <code>admin@hillcrest.test</code></td>
+              <td>Suspended school: everything is read-only.</td>
+            </tr>
+            <tr>
+              <td>School dashboard</td>
+              <td>Sign in as <code>multi@homebell.test</code></td>
+              <td>Works at 3 schools: picks one first.</td>
+            </tr>
+            <tr>
+              <td>Any web app</td>
+              <td>Click <span class="ui">Mock · Default</span> at the bottom-right</td>
+              <td>
+                Switch scenario: slow network, network failure, quiet queue, expired school, and
+                more.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="logins">
+      <p class="eyebrow">Reference</p>
+      <h2>All demo logins</h2>
+      <p>
+        Every web login uses the password <code>demo1234</code>. Every two-step code and SMS code is
+        <code>000000</code>. These work only in demo mode on this laptop.
+      </p>
+      <div class="tbl">
+        <table>
+          <thead>
+            <tr>
+              <th>Login</th>
+              <th>App</th>
+              <th>Who it is</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>owner@homebell.test</code></td>
+              <td>Platform</td>
+              <td>Super admin (everything)</td>
+            </tr>
+            <tr>
+              <td>
+                <code>ops@</code> · <code>billing@</code> · <code>support@homebell.test</code>
+              </td>
+              <td>Platform</td>
+              <td>Limited platform roles</td>
+            </tr>
+            <tr>
+              <td><code>admin@greenfield.test</code></td>
+              <td>School</td>
+              <td>Greenfield Academy admin</td>
+            </tr>
+            <tr>
+              <td>
+                <code>dispatch@</code> · <code>frontdesk@</code> ·
+                <code>reports@greenfield.test</code>
+              </td>
+              <td>School</td>
+              <td>Limited school roles</td>
+            </tr>
+            <tr>
+              <td><code>admin@oakwood.test</code></td>
+              <td>School</td>
+              <td>Admin with two-step verification on</td>
+            </tr>
+            <tr>
+              <td><code>+15550100001</code></td>
+              <td>Parent app</td>
+              <td>Jordan Rivera, primary guardian</td>
+            </tr>
+            <tr>
+              <td><code>+15550100002</code></td>
+              <td>Parent app</td>
+              <td>Alex Rivera, additional guardian</td>
+            </tr>
+            <tr>
+              <td><code>+15550100005</code></td>
+              <td>Parent app</td>
+              <td>New guardian, activates on first sign-in</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limits">
+      <p class="eyebrow">Good to know</p>
+      <h2>Demo limits</h2>
+      <div class="note warn">
+        <p>
+          <strong>The four apps don't talk to each other yet.</strong> Each app runs on its own demo
+          data, so a pickup requested on the phone won't appear in the school's Live queue. Tell the
+          story across the apps, but don't wait for a request to jump from one screen to another.
+          Connecting all four to the real server is the next phase.
+        </p>
+      </div>
+      <div class="grid2">
+        <div>
+          <h3>Already built</h3>
+          <p>
+            The real server (database, logins, SMS codes, tenant isolation, audit) is finished and
+            passes 82 automated tests. It just isn't connected to the apps yet.
+          </p>
+        </div>
+        <div>
+          <h3>Resetting the demo</h3>
+          <p>
+            Switching scenario in the <span class="ui">Mock · Default</span> panel resets that app's
+            demo data. Use it if things get messy mid-demo.
+          </p>
+        </div>
+        <div>
+          <h3>iPhone</h3>
+          <p>
+            The same app is built for iPhone, but it hasn't been tried on a real iPhone yet. Show it
+            on Android.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="review">
+      <p class="eyebrow">Pre-Phase 3 review</p>
+      <h2>What the review fixed</h2>
+      <p>
+        Before this walkthrough, every screen of the four apps was clicked through and these
+        problems were fixed:
+      </p>
+      <ul class="fixed">
+        <li>
+          Opening a school from a support session always failed in development. It now opens the
+          read-only support view.
+        </li>
+        <li>
+          With two tabs of the same app open, refreshing one could sign you out. Tabs now stay in
+          sync.
+        </li>
+        <li>
+          Lists (students, guardians and others) now work with the keyboard, and names are real
+          links you can open in a new tab.
+        </li>
+        <li>
+          The create-school form now lists missing fields instead of only greying out the button. It
+          also gained Gulf and India time zones.
+        </li>
+        <li>
+          New schools no longer get a "No recent activity" warning in their first two weeks, and
+          their history reads "Created / Trial requested".
+        </li>
+        <li>Audit filters read in plain words ("SMS code sent" instead of "Otp sent").</li>
+        <li>
+          The parent app now asks for confirmation before cancelling a pickup or moving the account
+          to a new phone. Sending a new SMS code clears the old error.
+        </li>
+        <li>The floating Next.js badge no longer covers the menu during demos.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var text = b.getAttribute('data-copy');
+      var done = function () {
+        b.textContent = 'Copied';
+        b.classList.add('done');
+        setTimeout(function () {
+          b.textContent = 'Copy';
+          b.classList.remove('done');
+        }, 1500);
+      };
+      var fallback = function () {
+        var r = document.createRange();
+        r.selectNodeContents(b.parentNode.firstChild);
+        var s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+      };
+      try {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } catch (e) {
+        fallback();
+      }
+    });
+  });
+</script>

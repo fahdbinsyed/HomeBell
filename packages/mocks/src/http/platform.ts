@@ -188,7 +188,12 @@ export function platformHandlers(ctx: MockContext) {
             action: 'create',
             fromState: null,
             toState: t.state,
-            reasonCode: 'contract_signed',
+            reasonCode:
+              t.state === 'trial'
+                ? 'trial_requested'
+                : t.state === 'pilot_free'
+                  ? 'pilot_program'
+                  : 'other',
             note: b.note ?? null,
             expiresAt: t.expiresAt,
             refundStatus: 'none',

@@ -195,7 +195,15 @@ export const labels = {
 };
 
 const AUDIT_OVERRIDES: Partial<Record<AuditAction, string>> = {
+  'auth.login': 'Signed in',
   'auth.login_failed': 'Sign-in failed',
+  'auth.logout': 'Signed out',
+  'auth.mfa_enrolled': 'Two-step verification set up',
+  'auth.password_reset': 'Password reset',
+  'otp.sent': 'SMS code sent',
+  'otp.verified': 'SMS code verified',
+  'otp.failed': 'Wrong SMS code',
+  'otp.locked': 'Phone locked (too many wrong codes)',
   'tenant.lifecycle_changed': 'School state changed',
   'device.cooldown_overridden': 'Transfer cooldown overridden',
   'pickup.request_rejected': 'Pickup request rejected',

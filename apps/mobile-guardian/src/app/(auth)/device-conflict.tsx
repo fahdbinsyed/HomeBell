@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { Alert } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
 import { unwrap } from '@homebell/api-client';
 import { formatDate, formatRelative } from '@homebell/copy';
@@ -74,7 +75,16 @@ export default function DeviceConflictScreen() {
             testID="transfer-device"
             title="Move to this phone"
             loading={transfer.isPending}
-            onPress={() => transfer.mutate()}
+            onPress={() =>
+              Alert.alert(
+                'Move your account to this phone?',
+                'Your other phone will be signed out, and you won’t be able to move again for 30 days.',
+                [
+                  { text: 'Not now', style: 'cancel' },
+                  { text: 'Move account', onPress: () => transfer.mutate() },
+                ],
+              )
+            }
           />
         ) : (
           <Banner

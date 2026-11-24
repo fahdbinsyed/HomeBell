@@ -79,7 +79,8 @@ export function tenantFlags(db: MockDb, t: TenantRecord): TenantFlag[] {
   )
     flags.push('suspicious_transfers');
   if (t.state === 'draft') flags.push('setup_incomplete');
-  if (!t.lastActivityAt && t.state !== 'draft') flags.push('no_recent_activity');
+  const settledIn = Date.parse(t.createdAt) < db.now().getTime() - 14 * 86_400_000;
+  if (!t.lastActivityAt && t.state !== 'draft' && settledIn) flags.push('no_recent_activity');
   return flags;
 }
 

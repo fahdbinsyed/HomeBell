@@ -2,6 +2,8 @@ import type { NextConfig } from 'next';
 
 const config: NextConfig = {
   reactStrictMode: true,
+  // The floating Next.js dev badge covers the sidebar user and the display footer in demos.
+  devIndicators: false,
   transpilePackages: [
     '@homebell/ui-web',
     '@homebell/web-core',

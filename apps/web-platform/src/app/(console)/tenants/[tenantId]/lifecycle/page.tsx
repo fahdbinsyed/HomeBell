@@ -59,7 +59,11 @@ export default function LifecyclePage() {
               <span className="font-medium">
                 {h.action in labels.lifecycleAction
                   ? labels.lifecycleAction[h.action as TenantLifecycleAction]
-                  : h.action}
+                  : h.action === 'create'
+                    ? 'Created'
+                    : h.action === 'expire'
+                      ? 'Expired (automatic)'
+                      : h.action}
               </span>
             ),
           },

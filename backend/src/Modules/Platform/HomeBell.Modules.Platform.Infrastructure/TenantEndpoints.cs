@@ -75,7 +75,7 @@ internal sealed partial class PlatformSupport(
         {
             flags.Add(TenantFlag.SetupIncomplete);
         }
-        else if (t.LastActivityAt is null || t.LastActivityAt < Now.AddDays(-14))
+        else if (t.CreatedAt < Now.AddDays(-14) && (t.LastActivityAt is null || t.LastActivityAt < Now.AddDays(-14)))
         {
             flags.Add(TenantFlag.NoRecentActivity);
         }
@@ -204,7 +204,7 @@ internal static class TenantEndpoints
                 }
 
                 s.Db.LifecycleHistory.Add(new TenantLifecycleHistory(Guid.CreateVersion7(), tenant.Id, "create", null, tenant.State,
-                    b.InitialState == TenantLifecycleState.Trial ? LifecycleReasonCode.TrialRequested : LifecycleReasonCode.Other, b.Note, b.ExpiresAt, RefundStatus.None, s.Me, s.Now));
+                    b.InitialState switch { TenantLifecycleState.Trial => LifecycleReasonCode.TrialRequested, TenantLifecycleState.PilotFree => LifecycleReasonCode.PilotProgram, _ => LifecycleReasonCode.Other }, b.Note, b.ExpiresAt, RefundStatus.None, s.Me, s.Now));
                 audit.Write(new AuditEntry(AuditAction.TenantCreated, AuditOutcome.Success, "tenant", tenant.Id.ToString(),
                     Data: new Dictionary<string, object?> { ["slug"] = tenant.Slug, ["initialState"] = tenant.State }, TenantId: tenant.Id));
                 await s.Db.SaveChangesAsync(t);

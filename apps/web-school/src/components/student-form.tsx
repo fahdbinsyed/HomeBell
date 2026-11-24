@@ -92,7 +92,13 @@ export function StudentFormFields({
             {...p}
             value={value.sectionId}
             onChange={(e) => set('sectionId', e.target.value)}
-            placeholder={sections.length ? 'No section' : 'No sections in this class'}
+            placeholder={
+              !value.classId
+                ? 'Choose a class first'
+                : sections.length
+                  ? 'No section'
+                  : 'No sections in this class'
+            }
             options={sections.map((s) => ({ value: s.id, label: s.name }))}
           />
         )}
