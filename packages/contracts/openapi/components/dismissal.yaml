@@ -126,7 +126,7 @@ PickupRequestDetail:
             - type: 'null'
 QueueSnapshot:
   type: object
-  required: [tenantId, queueDate, seq, items, generatedAt]
+  required: [tenantId, queueDate, seq, items, sentOutStepEnabled, followUpAfterMinutes, generatedAt]
   properties:
     tenantId:
       $ref: './common.yaml#/Uuid'
@@ -140,6 +140,19 @@ QueueSnapshot:
       type: array
       items:
         $ref: '#/QueueItem'
+    sentOutStepEnabled:
+      type: boolean
+      description: >-
+        Whether this school uses the optional "sent out" step (school setting and plan feature both on).
+        Staff who cannot read settings (e.g. dispatchers) need it to show or hide the step. Guardians can
+        always confirm pickup straight from `requested` (ADR-0008).
+    followUpAfterMinutes:
+      type: integer
+      minimum: 1
+      description: >-
+        A `requested` item older than this many minutes needs staff follow-up (the school's
+        `requestedStaleMinutes`). Clients compare it with the current time so an item moves to follow-up
+        even when no new event arrives; `QueueItem.stale` is only true as of when the item was sent.
     generatedAt:
       $ref: './common.yaml#/Timestamp'
 QueueEventType:
@@ -345,7 +358,7 @@ DisplayItem:
       format: int64
 DisplayFeed:
   type: object
-  required: [tenantId, displayId, queueDate, seq, items, settings, generatedAt]
+  required: [tenantId, displayId, queueDate, seq, items, classLabels, settings, generatedAt]
   properties:
     tenantId:
       $ref: './common.yaml#/Uuid'
@@ -362,12 +375,26 @@ DisplayFeed:
       type: array
       items:
         $ref: '#/DisplayItem'
+    classLabels:
+      type: array
+      items:
+        type: string
+      description: >-
+        Every row the board shows, in school order (class sort order, then section), formatted exactly
+        like DisplayItem.classLabel. Rows stay on screen even when empty. Empty when the school hides
+        the class on displays.
     settings:
       type: object
-      required: [schoolName, theme]
+      required: [schoolName, theme, followUpAfterMinutes]
       properties:
         schoolName:
           type: string
+        followUpAfterMinutes:
+          type: integer
+          minimum: 1
+          description: >-
+            A request waiting longer than this is flagged on the board for staff to follow up. Same
+            value as the school's requestedStaleMinutes timeout.
         logoUrl:
           type: [string, 'null']
         primaryColor:

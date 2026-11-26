@@ -1,13 +1,15 @@
 # ADR-0012: Target market, data protection, retention
 
-- **Status**: **Proposed — awaiting the product owner's target country / hosting region**
+- **Status**: **Proposed — launch market decided (Saudi Arabia, 2026-11-25); cloud provider, consent and retention still open**
 - **Date**: 2026-11-22
 
 ## Context
 
 Student and guardian data is regulated differently per country (e.g. FERPA/COPPA and state student-privacy
 laws in the US, GDPR/UK GDPR in Europe, PDPL in Saudi Arabia/UAE, local data-protection laws elsewhere).
-The launch market has not been decided yet.
+Decided 2026-11-25: launch in **Saudi Arabia**, hosted **in the Kingdom** (region key `sa-central`). The
+Saudi PDPL (SDAIA) therefore applies, and its rules on transferring personal data outside the Kingdom
+apply too. New schools default to country `SA`, region `sa-central`, timezone `Asia/Riyadh`.
 
 ## Proposed baseline (applies until this ADR is accepted)
 
@@ -27,5 +29,6 @@ specifics change configuration, not shapes.
 
 ## To decide
 
-1. Launch country/countries. 2. Hosting region/cloud. 3. Whether parental consent must be collected by
+1. ~~Launch country~~ Saudi Arabia (decided). 2. ~~Hosting region~~ in-Kingdom (decided); cloud provider
+   and data-centre region still to pick. 3. Whether parental consent must be collected by
    HomeBell or is covered by the school's enrolment consent. 4. Any mandated retention periods.

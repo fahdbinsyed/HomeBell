@@ -109,6 +109,13 @@ export class MockDb {
     this.persistTimer = setTimeout(() => this.persistence?.save(this.state), 150);
   }
 
+  /** Save now, skipping the debounce. Needed before a page reload, which would drop a pending save. */
+  flush(): void {
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    this.persistTimer = null;
+    this.persistence?.save(this.state);
+  }
+
   reset(): void {
     this.persistence?.clear();
     this.state = this.seed();

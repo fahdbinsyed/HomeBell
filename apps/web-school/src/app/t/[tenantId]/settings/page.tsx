@@ -151,7 +151,7 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-5">
             <Switch
               label="Use the “sent out” step"
-              description="Dispatchers mark children as sent out; guardians then confirm pickup."
+              description="Optional. Lets dispatchers mark a child as sent out. Guardians always confirm pickup in the app, with or without it."
               checked={s.dismissal.sentOutStepEnabled}
               disabled={!has('dismissal.sent_out_step')}
               onChange={(v) =>
@@ -196,7 +196,10 @@ export default function SettingsPage() {
                   />
                 )}
               </Field>
-              <Field label="Flag as waiting long after (min)">
+              <Field
+                label="Flag as waiting long after (min)"
+                hint="Moves the request to “Needs follow-up” on the Live queue and shows it in amber on the display screens."
+              >
                 {(p) => (
                   <Input
                     {...p}

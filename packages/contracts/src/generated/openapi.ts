@@ -2678,6 +2678,8 @@ export interface components {
       latestSeq: number;
     };
     DisplayFeed: {
+      /** @description Every row the board shows, in school order (class sort order, then section), formatted exactly like DisplayItem.classLabel. Rows stay on screen even when empty. Empty when the school hides the class on displays. */
+      classLabels: string[];
       displayId: components['schemas']['Uuid'];
       displayName?: string;
       generatedAt: components['schemas']['Timestamp'];
@@ -2686,6 +2688,8 @@ export interface components {
       /** Format: int64 */
       seq: number;
       settings: {
+        /** @description A request waiting longer than this is flagged on the board for staff to follow up. Same value as the school's requestedStaleMinutes timeout. */
+        followUpAfterMinutes: number;
         logoUrl?: string | null;
         primaryColor?: string | null;
         schoolName: string;
@@ -3788,9 +3792,13 @@ export interface components {
       verificationMethod: components['schemas']['VerificationMethod'];
     };
     QueueSnapshot: {
+      /** @description A `requested` item older than this many minutes needs staff follow-up (the school's `requestedStaleMinutes`). Clients compare it with the current time so an item moves to follow-up even when no new event arrives; `QueueItem.stale` is only true as of when the item was sent. */
+      followUpAfterMinutes: number;
       generatedAt: components['schemas']['Timestamp'];
       items: components['schemas']['QueueItem'][];
       queueDate: components['schemas']['LocalDate'];
+      /** @description Whether this school uses the optional "sent out" step (school setting and plan feature both on). Staff who cannot read settings (e.g. dispatchers) need it to show or hide the step. Guardians can always confirm pickup straight from `requested` (ADR-0008). */
+      sentOutStepEnabled: boolean;
       /**
        * Format: int64
        * @description Latest sequence number included in this snapshot. Use as afterSeq for catch-up.

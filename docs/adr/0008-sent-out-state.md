@@ -6,7 +6,7 @@
 ## Decision
 
 - Dispatchers mark requests **sent out** with one dashboard click (single or bulk). No scanning.
-- Enabled by default; tenant setting `sentOutStepEnabled` + feature `dismissal.sent_out_step`.
+- Off by default for new schools (product owner, 2026-11-26); a school admin can switch it on; tenant setting `sentOutStepEnabled` + feature `dismissal.sent_out_step`.
 - Guardians may confirm pickup from `requested` directly (child already handed over before the click);
   the acknowledgment records `viaSentOut = false` so reports show which path happened.
 - If the step is disabled, the flow is `requested → acknowledged`, and timeouts run from `requestedAt`.

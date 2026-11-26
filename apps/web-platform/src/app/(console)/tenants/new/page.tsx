@@ -57,9 +57,9 @@ export default function NewTenantPage() {
     slug: '',
     slugTouched: false,
     legalName: '',
-    countryCode: 'US',
-    region: 'us-east',
-    timezone: 'America/New_York',
+    countryCode: 'SA',
+    region: 'sa-central',
+    timezone: 'Asia/Riyadh',
     termStartDate: '',
     termEndDate: '',
     initialState: 'trial' as CreateTenantRequest['initialState'],
@@ -212,6 +212,7 @@ export default function NewTenantPage() {
                   value={f.region}
                   onChange={(e) => set('region', e.target.value)}
                   options={[
+                    { value: 'sa-central', label: 'Saudi Arabia (in-Kingdom)' },
                     { value: 'us-east', label: 'US East' },
                     { value: 'eu-west', label: 'EU West' },
                     { value: 'me-central', label: 'Middle East' },

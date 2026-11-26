@@ -495,7 +495,7 @@
       <p>
         Schools lose a lot of time at dismissal: cars queue at the gate, staff shout names, and
         children wait without knowing who is coming. HomeBell lets parents tell the school they're
-        on the way, so staff can send each child out at the right moment.
+        on the way, so the child's class knows and the child is ready when the parent arrives.
       </p>
       <ol class="story">
         <li>
@@ -511,15 +511,16 @@
           ><span>taps "Request pickup" in the phone app.</span>
         </li>
         <li>
-          <span class="t">3:00 pm</span><b>Dispatcher</b
-          ><span>sees the request in the Live queue.</span>
+          <span class="t">2:56 pm</span><b>Gate TV</b
+          ><span>lists "Mia R." under Grade 2, so her class knows she's being collected.</span>
         </li>
         <li>
-          <span class="t">3:02 pm</span><b>Gate TV</b
-          ><span>shows "Mia R." so the child heads out.</span>
+          <span class="t">3:02 pm</span><b>Parent</b
+          ><span>collects Mia at the gate. No staff action is needed.</span>
         </li>
         <li>
-          <span class="t">3:04 pm</span><b>Parent</b><span>confirms "Mia is with me". Done.</span>
+          <span class="t">3:04 pm</span><b>Parent</b
+          ><span>confirms "Mia is with me" in the app. Her name leaves the TV. Done.</span>
         </li>
       </ol>
       <p>Show the apps in this order. The demo works best in the order the story happens.</p>
@@ -664,11 +665,14 @@ pnpm --filter @homebell/web-display dev      # http://localhost:3002</pre>
         </li>
         <li>
           <span
-            ><span class="ui">Live queue</span>: the heart of the product. Press
-            <span class="ui">Sent out</span> on a waiting child.</span
+            ><span class="ui">Live queue</span>: every request in arrival order, with how long each
+            parent has been waiting.</span
           ><span class="say"
-            >Staff send a child out only when the parent is close, so children don't stand at the
-            gate for 20 minutes.</span
+            >Staff don't have to press anything. The request closes when the parent confirms pickup
+            in the app. <span class="ui">Sent out</span> is an optional extra: new schools start
+            with it off, and an admin can switch it on in Settings. A request still waiting after 10
+            minutes moves to <span class="ui">Needs follow-up</span> by itself, an amber banner
+            stays at the top, and a short alert pops up for staff with the page open.</span
           >
         </li>
         <li>
@@ -737,10 +741,28 @@ pnpm --filter @homebell/web-display dev      # http://localhost:3002</pre>
           >
         </li>
         <li>
-          <span>The board shows the queue: first name and last initial only.</span
+          <span
+            >The board has one fixed row per grade (Grade 1, Grade 2 …), always in the same order,
+            with the requested names flowing to the right, oldest first. A name waiting more than 10
+            minutes turns amber with its minutes, and the footer asks staff to follow up.</span
           ><span class="say"
-            >There are never phone numbers or parent names on the TV, because anyone in the car line
+            >This screen is for teachers, dismissal staff and students. Parents use the app.
+            Students look along their own grade's row for their name. Only first name and last
+            initial are shown, never phone numbers or parent names, because anyone near the screen
             can see it.</span
+          >
+        </li>
+        <li>
+          <span
+            >To show a busy afternoon, click <span class="ui">Mock · Default</span>, choose
+            <span class="ui">Busy queue</span>: about 30 children across five grades. If the pairing
+            screen appears, click
+            <span class="ui">Use the demo Greenfield Academy screen</span> again.</span
+          ><span class="say"
+            >A name leaves the board once the parent confirms pickup (or staff mark the child sent
+            out, if the school uses that step). If the grades don't fit on one screen, the board
+            pages through them every 9 seconds and shows "Page 1 of 2 · Grade 1 A – Grade 3
+            A".</span
           >
         </li>
         <li>
@@ -792,7 +814,7 @@ pnpm --filter @homebell/web-display dev      # http://localhost:3002</pre>
         </li>
         <li>
           <span
-            >The status page shows the queue position. When the school sends the child out, tap
+            >The status page shows the queue position. Once the child is with you, tap
             <span class="ui">Confirm … is with me</span>.</span
           ><span class="say"
             >The loop only closes when the parent confirms, so the school knows every child left

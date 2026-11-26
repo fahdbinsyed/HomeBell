@@ -75,7 +75,7 @@ const defaultSettings = (
     timeouts: {
       sentOutReminderMinutes: 5,
       sentOutExceptionMinutes: 15,
-      requestedStaleMinutes: 30,
+      requestedStaleMinutes: 10,
       endOfDayTime: '23:59',
     },
   },

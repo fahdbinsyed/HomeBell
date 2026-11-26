@@ -1,0 +1,490 @@
+<title>Large School Pickup</title>
+<meta name="claude:viewport-fit-sides" content="cover" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap"
+/>
+<style>
+  /* Layout: one reading column, same look as the HomeBell demo walkthrough; problem → options → questions. */
+  :root {
+    --bg: #f6f7fa;
+    --surface: #ffffff;
+    --ink: #18202e;
+    --muted: #5a6475;
+    --line: #dfe3ea;
+    --brass: #b07613;
+    --brass-soft: #fbf1dd;
+    --navy: #1f3a68;
+    --navy-soft: #e7edf8;
+    --ok: #1f7a4d;
+    --ok-soft: #e3f3ea;
+    --bad: #a3322b;
+    --bad-soft: #fbe9e7;
+    --code-bg: #eef1f6;
+    --display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+    --body: 'Figtree', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --bg: #10141c;
+      --surface: #171d28;
+      --ink: #e8ecf3;
+      --muted: #9aa5b8;
+      --line: #2a3242;
+      --brass: #e2a948;
+      --brass-soft: #2e2413;
+      --navy: #9db8ea;
+      --navy-soft: #1b2538;
+      --ok: #6fd3a0;
+      --ok-soft: #14291f;
+      --bad: #f09a92;
+      --bad-soft: #321a18;
+      --code-bg: #1f2633;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme='dark'] {
+    --bg: #10141c;
+    --surface: #171d28;
+    --ink: #e8ecf3;
+    --muted: #9aa5b8;
+    --line: #2a3242;
+    --brass: #e2a948;
+    --brass-soft: #2e2413;
+    --navy: #9db8ea;
+    --navy-soft: #1b2538;
+    --ok: #6fd3a0;
+    --ok-soft: #14291f;
+    --bad: #f09a92;
+    --bad-soft: #321a18;
+    --code-bg: #1f2633;
+    color-scheme: dark;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 4rem;
+  }
+  .col {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding-block: 3rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .brand {
+    color: var(--muted);
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 2.8rem);
+    line-height: 1.1;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.5rem;
+    line-height: 1.2;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 0;
+  }
+  p {
+    margin: 0;
+  }
+  .lede {
+    font-size: 1.12rem;
+    color: var(--muted);
+  }
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-block: 2rem;
+    border-top: 1px solid var(--line);
+  }
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--brass);
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--code-bg);
+    padding: 0.1em 0.4em;
+    border-radius: 5px;
+  }
+
+  .math {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+  .math div {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.8rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .math b {
+    font-family: var(--display);
+    font-size: 1.7rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .math span {
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .small {
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+  .split > div {
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .holds {
+    background: var(--ok-soft);
+  }
+  .breaks {
+    background: var(--bad-soft);
+  }
+  .holds h3 {
+    color: var(--ok);
+  }
+  .breaks h3 {
+    color: var(--bad);
+  }
+  ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .opt {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .opt.pick {
+    border-color: var(--brass);
+    box-shadow: 0 0 0 1px var(--brass);
+  }
+  .opt-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.4rem 1rem;
+  }
+  .tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    background: var(--code-bg);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .opt.pick .tag {
+    background: var(--brass-soft);
+    color: var(--brass);
+  }
+  .pc {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.4rem 1.2rem;
+    font-size: 0.93rem;
+  }
+  .pc p::before {
+    font-weight: 600;
+    margin-right: 0.3rem;
+  }
+  .pc .plus::before {
+    content: '+';
+    color: var(--ok);
+  }
+  .pc .minus::before {
+    content: '−';
+    color: var(--bad);
+  }
+
+  ol.qs {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: q;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  ol.qs li {
+    counter-increment: q;
+    display: grid;
+    grid-template-columns: 2.2rem minmax(0, 1fr);
+    gap: 0.1rem 0.6rem;
+  }
+  ol.qs li::before {
+    content: 'Q' counter(q);
+    grid-row: span 2;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--brass);
+    padding-top: 0.2rem;
+  }
+  ol.qs .why {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .ask {
+    background: var(--navy-soft);
+    border-radius: 12px;
+    padding: 1.1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+</style>
+
+<div class="col">
+  <header>
+    <p class="brand">HomeBell · discussion for the team</p>
+    <h1>What happens when a school has 5,000 students?</h1>
+    <p class="lede">
+      HomeBell works well for a typical school. For a very large one, the pickup screens and the
+      dismissal setup won't hold up as they are. Before we connect the apps to the real server, we
+      need to decide how big schools should run pickup. Your input on how schools actually do this
+      is what decides the design.
+    </p>
+  </header>
+
+  <section>
+    <p class="eyebrow">The problem</p>
+    <h2>One gate TV can't show a whole school</h2>
+    <p>
+      Today every school has one pickup queue. The gate TV lists every child whose pickup is
+      requested in fixed grade rows. In testing, a 1080p TV showed 30 children across five grades
+      with room to spare; on a 720p screen, or with class and section shown (10 rows), the board now
+      pages through the grades automatically (option A, built). Here is a rough picture of a big
+      school's afternoon. These are estimates, not measured figures.
+    </p>
+    <div class="math">
+      <div><b>5,000</b><span>students</span></div>
+      <div><b>~1,500</b><span>car pickups a day (many children take the bus or walk)</span></div>
+      <div><b>~30 min</b><span>when most of them arrive</span></div>
+      <div><b>100+</b><span>children "coming out" at the same moment</span></div>
+    </div>
+    <p>
+      One screen can't show 100 names, and parents can't find their child's name in a list that
+      long. The staff queue screen has the same problem: one dispatcher can't manage 1,500 rows.
+    </p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Where we stand</p>
+    <h2>What already holds up, and what doesn't</h2>
+    <div class="split">
+      <div class="holds">
+        <h3>Holds up</h3>
+        <ul>
+          <li>Storing 5,000 students and their guardians. This is small for the database.</li>
+          <li>Live updates to many screens at once. Each screen gets only the changes.</li>
+          <li>Plan limits. A big school can go on a bigger plan.</li>
+        </ul>
+      </div>
+      <div class="breaks">
+        <h3>Doesn't hold up</h3>
+        <ul>
+          <li>
+            Every TV shows the whole school. A TV can have a gate label, but it doesn't filter
+            anything yet.
+          </li>
+          <li>
+            Dismissal time is one window for the whole school, set per weekday. You can't release KG
+            earlier than Grade 10.
+          </li>
+          <li>The staff queue loads the whole day in one list.</li>
+          <li>Nobody has tested 1,000 parents tapping "Request pickup" within a few minutes.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">The options</p>
+    <h2>Four ways to solve it</h2>
+
+    <div class="opt">
+      <div class="opt-head">
+        <h3>A · Page through the names on the TV</h3>
+        <span class="tag">Built</span>
+      </div>
+      <p>
+        Keep one queue. When there are more names than fit, the TV flips pages every 6–8 seconds
+        ("Page 1 of 5").
+      </p>
+      <div class="pc">
+        <p class="plus">Quick to build, no change for schools</p>
+        <p class="minus">A parent may wait 40 seconds to see their child's name</p>
+        <p class="minus">Doesn't help the staff at all</p>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="opt-head">
+        <h3>B · Pickup gates (zones)</h3>
+        <span class="tag">Bigger change</span>
+      </div>
+      <p>
+        The school sets up its gates, like "North gate" and "Main gate", and assigns grades or
+        classes to each. Each TV and each staff member sees only their gate. The parent app tells
+        parents which gate to go to.
+      </p>
+      <div class="pc">
+        <p class="plus">Each screen shows 50–100 names, not 1,500</p>
+        <p class="plus">Matches how big schools already split traffic</p>
+        <p class="minus">Parents with children in different gates need a clear answer</p>
+        <p class="minus">More setup for the school</p>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="opt-head">
+        <h3>C · Staggered dismissal times</h3>
+        <span class="tag">Medium change</span>
+      </div>
+      <p>
+        Let a dismissal window apply to some grades only: KG at 2:30, primary at 2:45, secondary at
+        3:00. Parents can't request before their child's window opens.
+      </p>
+      <div class="pc">
+        <p class="plus">Spreads the rush over a longer time</p>
+        <p class="minus">Doesn't shrink the screen problem on its own</p>
+      </div>
+    </div>
+
+    <div class="opt pick">
+      <div class="opt-head">
+        <h3>D · B + C, with A as a safety net</h3>
+        <span class="tag">Recommended</span>
+      </div>
+      <p>
+        Gates split the crowd by place, staggered times split it by time, and paging covers the busy
+        moments on any one screen. This changes the API, so it belongs at the start of Phase 3,
+        before the apps are connected to the real server. Doing it later means building that
+        connection twice.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Your input</p>
+    <h2>Questions we need answered</h2>
+    <p>These decide how option D should work. Real examples from schools you know help most.</p>
+    <ol class="qs">
+      <li>
+        <span
+          >How many pickup gates or areas does a big school use, and do staff stand at each
+          one?</span
+        ><span class="why">Decides whether each gate needs its own TV and its own dispatcher.</span>
+      </li>
+      <li>
+        <span>Are gates assigned by grade, by class, by surname, or does the parent choose?</span
+        ><span class="why">Decides what the school sets up and what the parent sees.</span>
+      </li>
+      <li>
+        <span
+          >A family has a child in KG and one in Grade 8, in different gates. What happens
+          today?</span
+        ><span class="why"
+          >The hardest case. Does the older child walk to the younger one's gate?</span
+        >
+      </li>
+      <li>
+        <span
+          >Do big schools already release grades at different times? How many minutes apart?</span
+        ><span class="why">Tells us whether staggered windows are needed now or later.</span>
+      </li>
+      <li>
+        <span
+          >The TV now shows requested children grouped by grade. Is that the right split, or would
+          class and section suit big schools better?</span
+        ><span class="why"
+          >A big school may have 8 sections per grade, which makes one grade box very long.</span
+        >
+      </li>
+      <li>
+        <span>Do children wait in a hall and get called, or wait at the gate?</span
+        ><span class="why"
+          >If they wait inside, the hall needs its own screen or a staff tablet.</span
+        >
+      </li>
+      <li>
+        <span>Is there a real large school we could talk to, or design for first?</span
+        ><span class="why">One real school's routine beats any guess.</span>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="ask">
+      <h3>What to do next</h3>
+      <p>
+        Read the options, answer what you can of the seven questions, and say whether option D
+        sounds right. Send your answers back to Fahd, and we'll update the Phase 3 plan before any
+        building starts.
+      </p>
+    </div>
+  </section>
+</div>

@@ -429,7 +429,8 @@ export function pickupDetail(db: MockDb, p: PickupRecord): PickupRequestDetail {
 }
 
 const STATUS_MESSAGE: Record<PickupRecord['state'], (name: string) => string> = {
-  requested: (n) => `Request received. The school will send ${n} out shortly.`,
+  requested: (n) =>
+    `Pickup requested. The school has been told. Confirm here once ${n} is with you.`,
   sent_out: (n) => `${n} has been sent out. Tap "Confirm picked up" once you have them.`,
   acknowledged: (n) => `You confirmed ${n} was picked up.`,
   cancelled: () => 'This request was cancelled.',
@@ -465,6 +466,34 @@ export function guardianPickup(
   };
 }
 
+/** One formatting rule for both DisplayItem.classLabel and DisplayFeed.classLabels. */
+function displayClassLabel(
+  t: { settings: { display: { showClass: boolean; showSection: boolean } } },
+  cls: string | null,
+  sec: string | undefined,
+): string | null {
+  if (!t.settings.display.showClass || !cls) return null;
+  return t.settings.display.showSection && sec ? `${cls} ${sec}` : cls;
+}
+
+/** Every board row in school order: class sortOrder, then section name. */
+export function displayClassLabels(db: MockDb, tenantId: string): string[] {
+  const t = db.tenant(tenantId)!;
+  if (!t.settings.display.showClass) return [];
+  return db.state.classes
+    .filter((c) => c.tenantId === tenantId)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .flatMap((c) => {
+      const secs = db.state.sections
+        .filter((x) => x.classId === c.id)
+        .map((x) => x.name)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      return t.settings.display.showSection && secs.length
+        ? secs.map((x) => displayClassLabel(t, c.name, x)!)
+        : [c.name];
+    });
+}
+
 export function displayItem(db: MockDb, p: PickupRecord): DisplayItem {
   const s = db.state.students.find((x) => x.id === p.studentId)!;
   const t = db.tenant(p.tenantId)!;
@@ -478,11 +507,7 @@ export function displayItem(db: MockDb, p: PickupRecord): DisplayItem {
         : `${first} ${s.lastName[0]}.`;
   const cls = db.state.classes.find((c) => c.id === s.classId)?.name ?? null;
   const sec = db.state.sections.find((x) => x.id === s.sectionId)?.name;
-  const classLabel = t.settings.display.showClass
-    ? t.settings.display.showSection && sec
-      ? `${cls} ${sec}`
-      : cls
-    : null;
+  const classLabel = displayClassLabel(t, cls, sec);
   return {
     id: p.id,
     displayName,

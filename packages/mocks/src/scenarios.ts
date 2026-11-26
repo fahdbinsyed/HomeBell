@@ -72,6 +72,72 @@ export const SCENARIOS: Scenario[] = [
     flags: { liveSimulation: false },
   },
   {
+    id: 'busy_queue',
+    label: 'Busy queue',
+    description:
+      'Peak dismissal: every active Greenfield student without an open request is requested.',
+    apps: ['school', 'display'],
+    flags: { liveSimulation: false },
+    apply: (db) => {
+      const tenantId = DEMO.greenfield;
+      const queueDate = db.today(tenantId);
+      const open = new Set(
+        db.state.pickups
+          .filter(
+            (p) =>
+              p.tenantId === tenantId &&
+              p.queueDate === queueDate &&
+              (p.state === 'requested' || p.state === 'sent_out'),
+          )
+          .map((p) => p.studentId),
+      );
+      const students = db.state.students.filter(
+        (s) =>
+          s.tenantId === tenantId &&
+          s.status === 'active' &&
+          s.dismissalEligibility === 'eligible' &&
+          !open.has(s.id),
+      );
+      students.forEach((s, i) => {
+        const link = db.state.links.find((l) => l.studentId === s.id && !l.removedAt);
+        if (!link) return;
+        const at = new Date(db.now().getTime() - (students.length - i) * 20_000).toISOString();
+        const p: MockDb['state']['pickups'][number] = {
+          id: db.id(),
+          tenantId,
+          queueDate,
+          studentId: s.id,
+          guardianId: link.guardianId,
+          state: 'requested',
+          seq: 0,
+          requestedAt: at,
+          sentOutAt: null,
+          sentOutBy: null,
+          acknowledgedAt: null,
+          acknowledgedByGuardianId: null,
+          viaSentOut: null,
+          closedAt: null,
+          exceptionAt: null,
+          resolution: null,
+          reminderSentAt: null,
+          note: null,
+          history: [
+            {
+              fromState: null,
+              toState: 'requested',
+              actorType: 'guardian',
+              actor: null,
+              reason: null,
+              at,
+            },
+          ],
+        };
+        db.state.pickups.push(p);
+        db.queueEvent(p, 'queue.request.created');
+      });
+    },
+  },
+  {
     id: 'slow_network',
     label: 'Slow network',
     description: 'Every request takes 2.5 s.',

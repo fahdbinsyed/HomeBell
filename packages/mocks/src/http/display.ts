@@ -1,7 +1,7 @@
 import type { CreatePairingSessionRequest, DisplayHeartbeatRequest } from '@homebell/contracts';
 import { http } from 'msw';
 import type { DisplayRecord } from '../db/types';
-import { displayItem, isDisplayed } from '../mappers';
+import { displayClassLabels, displayItem, isDisplayed } from '../mappers';
 import { hasFeature } from '../rules/entitlements';
 import { OPERATIONAL_MODE } from '../rules/lifecycle';
 import { body, fail, handle, json, type MockContext } from './context';
@@ -97,8 +97,10 @@ export function displayHandlers(ctx: MockContext) {
           queueDate,
           seq: db.latestSeq(t.id, queueDate),
           items: visible(d, queueDate).map((p) => displayItem(db, p)),
+          classLabels: displayClassLabels(db, t.id),
           settings: {
             schoolName: t.settings.branding.displayName,
+            followUpAfterMinutes: t.settings.dismissal.timeouts.requestedStaleMinutes,
             logoUrl: t.settings.branding.logoUrl ?? null,
             primaryColor: t.settings.branding.primaryColor ?? null,
             theme: t.settings.display.theme,

@@ -38,7 +38,7 @@ public sealed record SecuritySettingsDto(bool StaffMfaRequired);
 public sealed record TenantSettingsDto(DismissalSettingsDto Dismissal, LocationRuleDto LocationRule, DisplaySettingsDto Display, BrandingDto Branding, NotificationSettingsDto Notifications, SecuritySettingsDto Security, string Locale)
 {
     public static TenantSettingsDto Default(string schoolName) => new(
-        new DismissalSettingsDto([.. Enumerable.Range(1, 5).Select(d => new DismissalWindowDto(d, "14:30", "16:00"))], true, new TimeoutsDto(5, 15, 30, "17:00")),
+        new DismissalSettingsDto([.. Enumerable.Range(1, 5).Select(d => new DismissalWindowDto(d, "14:30", "16:00"))], false, new TimeoutsDto(5, 15, 10, "17:00")),
         new LocationRuleDto(false, null, 300, 100),
         new DisplaySettingsDto(DisplayNameFormat.FirstNameLastInitial, true, false, "auto"),
         new BrandingDto(schoolName, null, null),

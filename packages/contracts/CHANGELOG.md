@@ -3,6 +3,16 @@
 Versioning follows ADR-0004: additive changes bump the minor `info.version` within `/v1`; breaking
 changes need an ADR and a `/v2` path for the affected resources.
 
+## 1.4.0 — 2026-11-25 (additive)
+
+- `QueueSnapshot` (`GET /v1/t/{tenantId}/queue`) gains `sentOutStepEnabled`. The Live queue must hide the
+  optional "sent out" step when a school turns it off, and dispatchers cannot read school settings.
+  Guardians confirming pickup straight from `requested` is unchanged (ADR-0008). It also gains
+  `followUpAfterMinutes`, so the Live queue can move a request to "Needs follow-up" the moment it
+  passes the school's limit, without waiting for a new event.
+- `DisplayFeed` (`GET /v1/display/feed`) gains `classLabels` (every grade/class row in school order, so
+  the board can show empty rows) and `settings.followUpAfterMinutes` (flag requests waiting too long).
+
 ## 1.3.0 — 2026-11-24 (additive)
 
 - Five tenant-plane create operations (`POST …/classes`, `…/students`, `…/imports`, `…/guardians`,

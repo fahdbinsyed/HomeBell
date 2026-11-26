@@ -38,7 +38,7 @@ export default function TermsScreen() {
         <Text variant="label">How HomeBell works</Text>
         <Text>
           Your school uses HomeBell to coordinate dismissal. When you request pickup, the school
-          sees your request and sends your child out. You confirm once your child is with you.
+          sees your request straight away. You confirm in the app once your child is with you.
         </Text>
         <Text>
           HomeBell records requests and confirmations. It doesn’t verify who physically collects a

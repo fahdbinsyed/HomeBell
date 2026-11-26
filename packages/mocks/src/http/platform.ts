@@ -181,6 +181,8 @@ export function platformHandlers(ctx: MockContext) {
             settings: structuredClone(db.state.tenants[0]!.settings),
           };
           t.settings.branding = { displayName: b.name, logoUrl: null, primaryColor: '#1F6FEB' };
+          // New schools start without the optional "sent out" step (ADR-0008); they can switch it on.
+          t.settings.dismissal.sentOutStepEnabled = false;
           db.state.tenants.push(t);
           db.state.lifecycleHistory.push({
             id: db.id(),

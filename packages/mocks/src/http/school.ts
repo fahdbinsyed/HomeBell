@@ -1422,6 +1422,11 @@ export function schoolHandlers(ctx: MockContext) {
           queueDate,
           seq: db.latestSeq(tenantId, queueDate),
           items,
+          sentOutStepEnabled:
+            db.tenant(tenantId)!.settings.dismissal.sentOutStepEnabled &&
+            hasFeature(db, tenantId, 'dismissal.sent_out_step'),
+          followUpAfterMinutes:
+            db.tenant(tenantId)!.settings.dismissal.timeouts.requestedStaleMinutes,
           generatedAt: db.nowIso(),
         });
       }),
@@ -1501,7 +1506,10 @@ export function schoolHandlers(ctx: MockContext) {
         const s = requireStaff(ctx, request, tenantId, 'school.queue.dispatch', true);
         return idempotent(ctx, request, `t:${tenantId}`, (raw) => {
           const b = JSON.parse(raw) as SentOutBulkRequest;
-          if (!db.tenant(tenantId)!.settings.dismissal.sentOutStepEnabled)
+          if (
+            !db.tenant(tenantId)!.settings.dismissal.sentOutStepEnabled ||
+            !hasFeature(db, tenantId, 'dismissal.sent_out_step')
+          )
             return fail('SENT_OUT_STEP_DISABLED');
           const succeeded: string[] = [];
           const failed: Array<{

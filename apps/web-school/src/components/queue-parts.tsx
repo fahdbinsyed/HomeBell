@@ -62,9 +62,12 @@ export function QueueCard({
   onSelect,
   onOpen,
   actions,
+  overdue,
 }: {
   item: QueueItem;
   now: Date;
+  /** Waiting past the school's follow-up limit, worked out against `now`. Falls back to `item.stale`. */
+  overdue?: boolean;
   selected?: boolean;
   onSelect?: (v: boolean) => void;
   onOpen: () => void;
@@ -73,13 +76,14 @@ export function QueueCard({
   const name = `${item.student.preferredName ?? item.student.firstName} ${item.student.lastName}`;
   const closed =
     item.state === 'acknowledged' || item.state === 'cancelled' || item.state === 'resolved';
+  const late = overdue ?? item.stale;
   const waited = minutesSince(
     item.state === 'sent_out' && item.sentOutAt ? item.sentOutAt : item.requestedAt,
     now,
   );
   return (
     <li
-      className={`rounded-lg border bg-surface p-3 ${item.stale || item.state === 'exception' ? 'border-danger-border' : 'border-border'} ${selected ? 'ring-2 ring-primary' : ''}`}
+      className={`rounded-lg border bg-surface p-3 ${late || item.state === 'exception' ? 'border-danger-border' : 'border-border'} ${selected ? 'ring-2 ring-primary' : ''}`}
     >
       <div className="flex items-start gap-3">
         {onSelect && (
@@ -112,13 +116,13 @@ export function QueueCard({
             </span>
           ) : (
             <span
-              className={`text-sm tabular-nums ${waited >= 10 ? 'font-semibold text-danger-fg' : 'text-text-muted'}`}
+              className={`text-sm tabular-nums ${late ? 'font-semibold text-danger-fg' : 'text-text-muted'}`}
               aria-label={`Waiting ${waited} minutes`}
             >
               {waited} min
             </span>
           )}
-          {item.stale && <Badge tone="danger">Waiting long</Badge>}
+          {late && item.state === 'requested' && <Badge tone="danger">Waiting long</Badge>}
           {item.state === 'sent_out' && item.reminderSentAt && (
             <Badge tone="warning">Reminder sent</Badge>
           )}

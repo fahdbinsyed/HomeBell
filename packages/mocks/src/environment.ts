@@ -162,11 +162,13 @@ export function createMockEnvironment(opts: MockEnvironmentOptions): MockEnviron
       opts.store?.set(`${prefix}.scenario`, ctx.scenario.id);
       db.reset();
       ctx.scenario.apply?.(db);
-      db.touch();
+      // The dev panel reloads the page right after this, so save synchronously.
+      db.flush();
     },
     reset() {
       db.reset();
       ctx.scenario.apply?.(db);
+      db.flush();
       ctx.webSessionId = null;
       ctx.onWebSessionChange?.(null);
     },
